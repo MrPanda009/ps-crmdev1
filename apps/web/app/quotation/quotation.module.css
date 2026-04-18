@@ -140,39 +140,84 @@
 
 .docNav {
   position: sticky;
-  top: 126px;
+  top: 72px;
   z-index: 38;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--page-bg) 90%, transparent);
   backdrop-filter: blur(10px);
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .docNavInner {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 0 1.5rem;
+  padding: 0.34rem 1.5rem;
+  min-height: 44px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
-.docNavInner a {
-  display: inline-block;
-  padding: 0.86rem 0.85rem;
+.docNavLinks {
+  display: flex;
+  align-items: center;
+  gap: 0.06rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.docNavLinks::-webkit-scrollbar {
+  display: none;
+}
+
+.docNavLinks a {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 0.56rem;
+  line-height: 1;
   text-decoration: none;
   color: var(--text-faint);
   font-family: var(--font-geist-mono), monospace;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  font-size: 0.72rem;
+  letter-spacing: 0.045em;
+  font-size: 0.67rem;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
   transition: color 0.18s ease, border-color 0.18s ease;
 }
 
-.docNavInner a:hover {
+.docNavLinks a:hover {
   color: var(--text-strong);
   border-color: var(--accent-strong);
+}
+
+.navPrintButton {
+  appearance: none;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.72rem;
+  line-height: 1;
+  background: var(--surface-alt);
+  color: var(--text-soft);
+  font-size: 0.67rem;
+  letter-spacing: 0.035em;
+  font-family: var(--font-geist-mono), monospace;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  transition: transform 0.18s ease, background-color 0.18s ease;
+}
+
+.navPrintButton:hover {
+  transform: translateY(-1px);
+  background: var(--accent-soft);
 }
 
 .container {
@@ -274,7 +319,7 @@
 .section {
   border-bottom: 1px solid var(--border);
   padding: 2.65rem 0;
-  scroll-margin-top: 196px;
+  scroll-margin-top: 136px;
 }
 
 .section:last-of-type {
@@ -935,13 +980,14 @@
     padding-top: 66px;
   }
 
-  .topBar {
+  .docNav {
     top: 62px;
-    padding: 0.58rem 1rem;
   }
 
-  .docNav {
-    top: 116px;
+  .docNavInner {
+    min-height: 42px;
+    padding-top: 0.28rem;
+    padding-bottom: 0.28rem;
   }
 
   .container {
@@ -958,17 +1004,24 @@
 }
 
 @media (max-width: 640px) {
-  .topBarTag {
-    display: none;
+  .docNavLinks a {
+    height: 30px;
+    padding-left: 0.46rem;
+    padding-right: 0.46rem;
+    font-size: 0.64rem;
+    letter-spacing: 0.035em;
   }
 
-  .topBar {
-    gap: 0.55rem;
+  .navPrintButton {
+    height: 30px;
+    font-size: 0.64rem;
+    padding-left: 0.58rem;
+    padding-right: 0.58rem;
   }
 
-  .docNavInner a {
-    padding-left: 0.62rem;
-    padding-right: 0.62rem;
+  .navPrintButton {
+    padding: 0.32rem 0.58rem;
+    font-size: 0.67rem;
   }
 
   .metricGrid,

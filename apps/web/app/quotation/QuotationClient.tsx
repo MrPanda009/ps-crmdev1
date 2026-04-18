@@ -91,13 +91,13 @@ interface CapabilityRow {
 }
 
 const navItems: NavItem[] = [
-  { href: "#basics", label: "01 Basic Details" },
-  { href: "#scope", label: "02 Scope of Work" },
-  { href: "#tech", label: "03 Tech Specs" },
+  { href: "#basics", label: "01 Basics" },
+  { href: "#scope", label: "02 Scope" },
+  { href: "#tech", label: "03 Tech" },
   { href: "#timeline", label: "04 Timeline" },
   { href: "#resources", label: "05 Resources" },
-  { href: "#costs", label: "06 Cost Allocation" },
-  { href: "#scale", label: "07 Scale Model" },
+  { href: "#costs", label: "06 Costs" },
+  { href: "#scale", label: "07 Scale" },
   { href: "#maintenance", label: "08 Maintenance" },
   { href: "#benchmark", label: "09 Benchmark" },
 ];
@@ -720,26 +720,18 @@ export default function QuotationClient() {
         <Animatedheader />
       </div>
 
-      <div className={cx(styles.topBar, styles.printHidden)}>
-        <div className={styles.topBarBrand}>
-          <span className={styles.liveDot} />
-          JanSamadhan
-        </div>
-        <div className={styles.topBarRight}>
-          <span className={styles.topBarTag}>QUOTATION DOC · 2026</span>
-          <button type="button" className={styles.printButton} onClick={handlePrint}>
-            Print / Save PDF
-          </button>
-        </div>
-      </div>
-
       <nav className={cx(styles.docNav, styles.printHidden)}>
         <div className={styles.docNavInner}>
-          {navItems.map((item) => (
-            <a key={item.href} href={item.href}>
-              {item.label}
-            </a>
-          ))}
+          <div className={styles.docNavLinks}>
+            {navItems.map((item) => (
+              <a key={item.href} href={item.href}>
+                {item.label}
+              </a>
+            ))}
+          </div>
+          <button type="button" className={styles.navPrintButton} onClick={handlePrint}>
+            Print / Save PDF
+          </button>
         </div>
       </nav>
 
