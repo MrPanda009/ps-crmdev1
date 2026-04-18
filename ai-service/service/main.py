@@ -80,16 +80,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="JanSamadhan AI Service", version="1.0.0")
 
-# Enable CORS for browser-based frontend calls
+# Enable CORS for all origins (Required for cross-platform deployment)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-    ],
-    allow_credentials=False,
+    allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
