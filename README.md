@@ -13,7 +13,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js_15-000000?style=for-the-badge&logo=nextdotjs)](https://nextjs.org/)
 [![Supabase](https://img.shields.io/badge/Supabase_+_PostGIS-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Gemini](https://img.shields.io/badge/Gemini_AI_(Free_Tier)-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
+[![Gemini](https://img.shields.io/badge/Gemini_AI_(Paid_API)-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
 [![DIGIPIN](https://img.shields.io/badge/DIGIPIN-India_Post_Standard-FF6600?style=for-the-badge)](https://www.indiapost.gov.in/)
 
 > **Hackathon Submission · March 2026 · Team 404**
@@ -171,11 +171,11 @@ Full platform control. Admins can view all complaints across all departments, ma
 - **Node.js** v18+
 - **Python** 3.10+
 - **Supabase** project (free tier works)
-- **Google Gemini API key** (free tier — see note below)
+- **Google Gemini API key** (paid plan required — see note below)
 - **Mappls Maps API key**
 - **reCAPTCHA site key** (Google)
 
-> ⚠️ **Gemini API Key is intentionally set to the FREE tier.** This is a deliberate design choice to prevent runaway costs during demos and to avoid billing spikes that could crash the AI service. The free tier is sufficient for hackathon-scale usage. See [API Reference](#-api-reference) for more details.
+> ⚠️ **Gemini API Key must use a billed plan.** JanSamadhan does not assume Gemini free-tier availability. Use budget alerts and per-key quota caps to control spend during demos and production usage. See [API Reference](#-api-reference) for deployment guidance.
 
 ---
 
@@ -200,7 +200,7 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key for client-side calls |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key for server-side admin operations |
 | `SUPABASE_SERVICE_KEY` | Optional fallback service key used by some backend modules |
-| `GEMINI_API_KEY` | Google Gemini API key (free tier) |
+| `GEMINI_API_KEY` | Google Gemini API key (paid plan) |
 | `GEMINI_PRIMARY_MODEL` | Optional override for primary Gemini model |
 | `GEMINI_FALLBACK_MODEL` | Optional fallback Gemini model on quota/model errors |
 | `MAPPLS_API_KEY` | Mappls Maps API for India geocoding |
@@ -350,7 +350,7 @@ flowchart TD
 
 ### 💬 Seva Chatbot — Gemini AI (Primary Path)
 
-**Seva** is JanSamadhan's AI-powered complaint assistant, built on **Google Gemini** (free tier). It transforms complaint filing from "fill a 10-field form" to "just tell me what happened."
+**Seva** is JanSamadhan's AI-powered complaint assistant, built on **Google Gemini** (paid API). It transforms complaint filing from "fill a 10-field form" to "just tell me what happened."
 
 #### What Seva Does
 
@@ -381,7 +381,7 @@ Seva:     "✅ Complaint filed. Your ticket number is DL-2026-00312.
            You can track it live on your dashboard."
 ```
 
-> 🔑 **Why Gemini free tier?** The API key is deliberately configured on the free (non-billed) plan. This prevents any accidental billing spikes during the demo or public usage, which could cause service interruptions. The free quota is more than sufficient for demonstration scale.
+> 🔑 **Gemini billing model:** JanSamadhan assumes a billed Gemini API key with explicit quota caps and budget alerts. This avoids dependency on changing free-tier availability while keeping runtime predictable for demos and production.
 
 ---
 
@@ -557,7 +557,7 @@ flowchart TD
 
 ## 👷 Worker Flow
 
-Workers operate from a **mobile-first PWA** designed for one-hand use in the field.
+Workers operate from a **mobile-first web interface** designed for one-hand use in the field.
 
 ```mermaid
 flowchart TD
@@ -689,7 +689,7 @@ graph TD
     subgraph Client["🌐 Client Layer (Next.js 15 + React 19)"]
         CIT[👤 Citizen PWA]
         AUTH[🏛️ Authority Dashboard]
-        WRK[👷 Worker PWA]
+        WRK[👷 Worker Web Interface]
         ADM[⚙️ Admin Panel]
     end
 
@@ -708,7 +708,7 @@ graph TD
     end
 
     subgraph EXT["🔌 External Services"]
-        GMN[🤖 Google Gemini\nFree Tier API]
+        GMN[🤖 Google Gemini\nPaid API]
         MAPS[🗺️ Mappls Maps\nLeaflet.js]
         GAUTH[🔐 Google OAuth]
         RCAP[🛡️ reCAPTCHA v2]
@@ -742,7 +742,7 @@ graph TD
 | **Frontend** | Next.js 15 + React 19 + Tailwind v4 | PWA, server components, routing |
 | **Backend** | FastAPI (Python) | Seva chatbot, DIGIPIN API, analytics |
 | **Database** | PostgreSQL 15 + PostGIS 3.4 (Supabase) | All data, spatial queries, RLS |
-| **AI** | Google Gemini (Free Tier) | Natural language classification, multi-turn chat |
+| **AI** | Google Gemini (Paid API) | Natural language classification, multi-turn chat |
 | **Maps** | Mappls API + Leaflet.js | India-specific geocoding, interactive map |
 | **Auth** | Supabase Auth + Google OAuth | Role-based access, magic links |
 | **Location Standard** | DIGIPIN (Dept of Posts, GoI) | 10-char 4m×4m location encoding |
@@ -812,11 +812,11 @@ graph TD
 | `update_complaint_status_citizen(...)` | Citizen closure decision status update helper |
 | `nearest_urgent_complaint(...)` | Worker dispatch helper using proximity + urgency |
 
-### Gemini AI — Free Tier Configuration
+### Gemini AI — Paid API Configuration
 
-> **Important:** The `GEMINI_API_KEY` in this project is configured to use Google's **free, non-billed tier**.
+> **Important:** The `GEMINI_API_KEY` in this project is configured to use Google's **paid, billed API tier**.
 >
-> **Why?** During hackathons and public demos, unbounded AI API calls can generate unexpected billing spikes — sometimes hundreds of dollars in minutes if the demo goes viral or a bot targets the endpoint. By using the free tier with its built-in rate limits, JanSamadhan ensures:
+> **Why?** Gemini free-tier availability and limits can change. A billed plan with explicit safeguards keeps behavior predictable for real deployments and demos. JanSamadhan therefore uses:
 > - No accidental billing charges
 > - Graceful degradation when quota is hit (falls back to manual form)
 > - Safe for public demo deployment

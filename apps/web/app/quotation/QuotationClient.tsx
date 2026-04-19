@@ -126,7 +126,7 @@ const frontendDeliverables: Deliverable[] = [
   },
   {
     id: "03",
-    title: "Worker Mobile PWA",
+    title: "Worker Mobile Web",
     description:
       "3 routes. Task list with SLA countdown, proof photo upload, Google Maps navigation to 4m² DIGIPIN coordinates.",
     badge: "Live",
@@ -200,7 +200,7 @@ const specs: SpecItem[] = [
   {
     layer: "Presentation",
     tech: "Next.js 15 · React 19",
-    note: "Desktop + mobile PWA. Hindi & English UI. No installation required. Tailwind CSS v4, Leaflet.js + Mappls maps.",
+    note: "Desktop + mobile web interface. Hindi & English UI. No installation required. Tailwind CSS v4, Leaflet.js + Mappls maps.",
   },
   {
     layer: "Backend API",
