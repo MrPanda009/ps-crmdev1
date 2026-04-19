@@ -13,20 +13,16 @@ import {
   quotationHero,
   quotationHeroChips,
 } from "./quotation-content";
+import {
+  formatInrCompact,
+  getComplaintsPerYear,
+  getInfraMonthlyCost,
+  getInfraPerGrievance,
+} from "./quotation-pricing";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger, useGSAP);
 }
-
-const SUPABASE_PLAN_PER_MONTH = 2085;
-const SUPABASE_CAPACITY_WARDS = 18;
-const MAPPLS_PLAN_PER_MONTH = 10000;
-const MAPPLS_CAPACITY_WARDS = 42;
-const RESEND_PLAN_PER_MONTH = 1668;
-const RESEND_CAPACITY_WARDS = 10;
-const GCP_PER_WARD_PER_MONTH = 3500;
-const VARIABLE_PER_WARD_PER_MONTH = 114 + 650 + 186 + 499 + 250 + 800;
-const COMPLAINTS_PER_WARD_PER_MONTH = 1860;
 
 const quotationHeaderTheme: HeaderTheme = {
   light: {
@@ -47,25 +43,6 @@ function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
 }
 
-function calculateMonthlyInfrastructureCost(wards: number): number {
-  const sharedFixedCost =
-    Math.ceil(wards / SUPABASE_CAPACITY_WARDS) * SUPABASE_PLAN_PER_MONTH +
-    Math.ceil(wards / MAPPLS_CAPACITY_WARDS) * MAPPLS_PLAN_PER_MONTH +
-    Math.ceil(wards / RESEND_CAPACITY_WARDS) * RESEND_PLAN_PER_MONTH;
-
-  return Math.round(sharedFixedCost + (GCP_PER_WARD_PER_MONTH + VARIABLE_PER_WARD_PER_MONTH) * wards);
-}
-
-function formatCurrencyCompact(value: number): string {
-  if (value >= 10000000) {
-    return `₹${(value / 10000000).toFixed(2)} Cr`;
-  }
-  if (value >= 100000) {
-    return `₹${(value / 100000).toFixed(2)} L`;
-  }
-  return `₹${value.toLocaleString("en-IN")}`;
-}
-
 function zoneLabel(wards: number): string {
   if (wards === 1) return "single ward";
   if (wards <= 5) return "sub-zone cluster";
@@ -80,15 +57,15 @@ export default function QuotationClient() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const rootRef = useRef<HTMLElement>(null);
-  const [wardCount, setWardCount] = useState(20);
+  const [wardCount, setWardCount] = useState(1);
   const handleWardCountChange = useCallback((value: number) => {
     setWardCount(value);
   }, []);
 
-  const monthlyCost = useMemo(() => calculateMonthlyInfrastructureCost(wardCount), [wardCount]);
+  const monthlyCost = useMemo(() => getInfraMonthlyCost(wardCount), [wardCount]);
   const annualCost = monthlyCost * 12;
-  const yearlyComplaints = wardCount * COMPLAINTS_PER_WARD_PER_MONTH * 12;
-  const perGrievance = (annualCost / yearlyComplaints).toFixed(2);
+  const yearlyComplaints = useMemo(() => getComplaintsPerYear(wardCount), [wardCount]);
+  const perGrievance = useMemo(() => getInfraPerGrievance(wardCount).toFixed(2), [wardCount]);
   const scaleZone = zoneLabel(wardCount);
 
   const sections = useMemo(
@@ -97,8 +74,8 @@ export default function QuotationClient() {
         wardCount,
         onWardCountChange: handleWardCountChange,
         zoneContext: scaleZone,
-        monthlyCost: formatCurrencyCompact(monthlyCost),
-        annualCost: formatCurrencyCompact(annualCost),
+        monthlyCost: formatInrCompact(monthlyCost),
+        annualCost: formatInrCompact(annualCost),
         yearlyComplaints: `${Math.round(yearlyComplaints / 1000).toLocaleString("en-IN")}K`,
         perGrievance: `₹${perGrievance}`,
       }),

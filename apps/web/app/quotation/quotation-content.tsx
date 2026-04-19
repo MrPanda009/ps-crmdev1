@@ -1,5 +1,18 @@
 import type { ChangeEvent, ReactNode } from "react";
 import styles from "./quotation.module.css";
+import {
+  COMPLAINTS_PER_WARD_PER_MONTH,
+  MAINTENANCE_COSTS,
+  MAINTENANCE_TOTAL_ANNUAL,
+  PROJECT_COST_LINE_ITEMS,
+  SOFTWARE_CLOUD_MONTHLY_ONE_WARD,
+  SOFTWARE_CLOUD_YEAR1_ONE_WARD,
+  formatInr,
+  formatInrTwoDecimals,
+  getInfraPerGrievance,
+  getProjectPerGrievanceExclGst,
+  getProjectTotalExclGst,
+} from "./quotation-pricing";
 
 interface MetricCard {
   label: string;
@@ -51,9 +64,10 @@ interface QuotationRow {
 }
 
 interface MaintenanceRow {
-  scale: string;
+  item: string;
+  scope: string;
+  inclusion: string;
   annual: string;
-  perGrievance: string;
 }
 
 interface CapabilityRow {
@@ -95,12 +109,22 @@ export const quotationHeroChips = [
   "MVP Live",
   "SDG 11 · SDG 16",
   "9 months development",
-  "April 2026",
+  "19 April 2026",
 ];
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
 }
+
+const PRIMARY_PILOT_WARDS = 1;
+const PRIMARY_YEARLY_COMPLAINTS = COMPLAINTS_PER_WARD_PER_MONTH * 12;
+const PRIMARY_YEAR1_SUBTOTAL = getProjectTotalExclGst(PRIMARY_PILOT_WARDS);
+const PRIMARY_INFRA_PER_GRIEVANCE = getInfraPerGrievance(PRIMARY_PILOT_WARDS);
+const PRIMARY_FULL_PER_GRIEVANCE = getProjectPerGrievanceExclGst(PRIMARY_PILOT_WARDS);
+const CPGRAMS_MIN_PER_GRIEVANCE = 83;
+const CPGRAMS_MAX_PER_GRIEVANCE = 250;
+const MIN_ADVANTAGE_MULTIPLIER = CPGRAMS_MIN_PER_GRIEVANCE / PRIMARY_INFRA_PER_GRIEVANCE;
+const MAX_ADVANTAGE_MULTIPLIER = CPGRAMS_MAX_PER_GRIEVANCE / PRIMARY_INFRA_PER_GRIEVANCE;
 
 const overviewMetrics: MetricCard[] = [
   { label: "Routes", value: "39", sub: "Citizen + Authority + Admin" },
@@ -296,147 +320,84 @@ const permissionDeliverables: Deliverable[] = [
 
 const infraRows: InfraRow[] = [
   {
-    service: "Supabase",
-    badge: "DB + Auth + Storage",
+    service: "Software / Cloud Costs",
+    badge: "Year-1 Baseline",
     badgeClass: "badgeBlue",
-    billing: "Pro plan: 100K MAU flat",
-    detail: "Covers ~18 wards per plan. Shared, not multiplied.",
-    plan: "Pro $25 ÷ 18 wards",
-    amount: "₹116",
-  },
-  {
-    service: "GCP Cloud Run",
-    badge: "Web + API + AI",
-    badgeClass: "badgeAmber",
-    billing: "~30K requests / ward / month",
-    detail: "3 services: crm-web, crm-api, crm-ai. Min instances = 0.",
-    plan: "Pay-per-use",
-    amount: "₹3,500",
-  },
-  {
-    service: "Mappls API",
-    badge: "Maps + Geocode",
-    badgeClass: "badgeAmber",
-    billing: "12,090 calls / ward / month",
-    detail: "1,860 complaints × 6.5 calls avg. Pro plan shared across 42 wards.",
-    plan: "Pro ₹10,000 ÷ 42 wards",
-    amount: "₹238",
-  },
-  {
-    service: "Gemini Flash",
-    badge: "AI — text",
-    badgeClass: "badgeGreen",
-    billing: "5.2M tokens / ward / month",
-    detail: "~2,800 tokens per complaint. ₹22 / M tokens (Google AI API).",
-    plan: "₹22 / million tokens",
-    amount: "₹114",
-  },
-  {
-    service: "Gemini Vision",
-    badge: "CCTV analysis",
-    badgeClass: "badgeAmber",
-    billing: "~500 image calls / ward / month",
-    detail: "YOLO-flagged incidents sent to Gemini for verification.",
-    plan: "₹1,300 / million tokens",
-    amount: "₹650",
-  },
-  {
-    service: "Sarvam STT",
-    badge: "Voice input",
-    badgeClass: "badgeBlue",
-    billing: "~372 calls × 30s average",
-    detail: "20% of complaints use voice. 10 Indian languages.",
-    plan: "₹0.50 / minute",
-    amount: "₹186",
-  },
-  {
-    service: "Resend",
-    badge: "Email notifications",
-    badgeClass: "badgeBlue",
-    billing: "~5,580 emails / ward / month",
-    detail: "3 per complaint lifecycle: created, assigned, resolved.",
-    plan: "Pro $20 ÷ 10 wards",
-    amount: "₹167",
-  },
-  {
-    service: "WhatsApp Cloud API",
-    badge: "Meta",
-    badgeClass: "badgeAmber",
-    billing: "1,860 conversations / ward / month",
-    detail: "First 1,000 free. ~860 overage × ₹0.58 / conversation.",
-    plan: "Business tier",
-    amount: "₹499",
-  },
-  {
-    service: "Redis — Upstash",
-    badge: "Cache + sessions",
-    badgeClass: "badgeGreen",
-    billing: "Pay-as-you-go commands",
-    detail: "Session cache, rate limiting, and real-time deduplication.",
-    plan: "₹0.20 / 100K commands",
-    amount: "₹250",
-  },
-  {
-    service: "GCP Monitoring",
-    badge: "Observability",
-    badgeClass: "badgeBlue",
-    billing: "Cloud Logging + Alerting",
-    detail: "SLA breach alerting and anomaly detection.",
-    plan: "Pay-per-use",
-    amount: "₹800",
+    billing: "Primary 1-ward quotation baseline",
+    detail:
+      "Includes GCP Cloud Run, Supabase, Redis, Mappls, Gemini, Sarvam STT, WhatsApp Cloud API, and email operations.",
+    plan: `${formatInr(SOFTWARE_CLOUD_MONTHLY_ONE_WARD)} / month × 12 months`,
+    amount: formatInr(SOFTWARE_CLOUD_YEAR1_ONE_WARD),
   },
 ];
 
 const quotationRows: QuotationRow[] = [
   {
     item: "Prototype & Testing Cost",
-    note: "Development on cloud — no hardware costs",
-    basis: "Deployment on GCP Cloud Run (free tier during development)",
-    amount: "₹0",
+    note: "MVP development + QA cycle",
+    basis:
+      "Full-stack implementation across web, API, and AI services, including end-to-end user-role integration testing.",
+    amount: formatInr(PROJECT_COST_LINE_ITEMS.prototypeTesting),
   },
   {
     item: "Machinery / Hardware",
     note: "No proprietary hardware required",
     basis: "Cloud infrastructure provided by government data centres or GCP",
-    amount: "₹0",
+    amount: formatInr(PROJECT_COST_LINE_ITEMS.machineryHardware),
   },
   {
     item: "Team Stipends",
-    note: "Student development team",
+    note: "5 member implementation team",
     basis: "5 members × 9 months × ₹22,000 / month",
-    amount: "₹9,90,000",
+    amount: formatInr(PROJECT_COST_LINE_ITEMS.teamStipends),
   },
   {
     item: "Execution & Deployment",
-    note: "Site visits: survey, commissioning, handover",
-    basis: "2 visits × 5 members × ₹25,000 / visit (transport + commissioning)",
-    amount: "₹50,000",
+    note: "Deployment readiness and field execution",
+    basis:
+      "Fixed execution allocation covering survey, commissioning, deployment configuration, and handover readiness activities.",
+    amount: formatInr(PROJECT_COST_LINE_ITEMS.executionDeployment),
   },
   {
     item: "Cloud & Connectivity (Year 1)",
-    note: "20-ward pilot infrastructure",
-    basis: "₹6,520 / ward / month × 20 wards × 12 months",
-    amount: "₹15,64,800",
+    note: "Primary 1-ward pilot software/cloud model",
+    basis: `${formatInr(SOFTWARE_CLOUD_MONTHLY_ONE_WARD)} / month × 12 months × 1 ward`,
+    amount: formatInr(SOFTWARE_CLOUD_YEAR1_ONE_WARD),
   },
   {
     item: "Dashboard & App Dev",
     note: "API toolkit + third-party development costs",
-    basis: "Verified receipts on file — Gemini, Supabase, hosting, travel",
-    amount: "₹12,724",
+    basis: "Gemini, Sarvam STT, WhatsApp API, Mappls, and developer toolkit allocation",
+    amount: formatInr(PROJECT_COST_LINE_ITEMS.dashboardAppDev),
   },
   {
     item: "Contingency Fund (10%)",
-    note: "Cost revision, hardware renewal, and upgrades",
-    basis: "10% of cloud + deployment + API costs",
-    amount: "₹2,62,752",
+    note: "Risk reserve for internal implementation and scale-up contingencies",
+    basis: "Approved contingency reserve aligned to internal project-cost coverage in the quotation sheet.",
+    amount: formatInr(PROJECT_COST_LINE_ITEMS.contingencyFund),
   },
 ];
 
 const maintenanceRows: MaintenanceRow[] = [
-  { scale: "1 ward (pilot)", annual: "₹78,240", perGrievance: "₹3.52" },
-  { scale: "20 wards (1 zone)", annual: "₹15,64,800", perGrievance: "₹3.52" },
-  { scale: "100 wards (5 zones)", annual: "₹78,24,000", perGrievance: "₹3.52" },
-  { scale: "250 wards (all Delhi)", annual: "₹1,95,60,000", perGrievance: "₹3.52" },
+  {
+    item: "Cloud Infrastructure",
+    scope: "1-ward scale (expandable up to 7 wards)",
+    inclusion:
+      "GCP Cloud Run, Supabase Pro, Redis, domain renewal, and SSL baseline operations.",
+    annual: formatInr(MAINTENANCE_COSTS.cloudInfrastructureAnnual),
+  },
+  {
+    item: "Developer Support",
+    scope: "Part-time retainer (3 days/week)",
+    inclusion: "Security patches, dependency updates, bug fixes, and admin support.",
+    annual: formatInr(MAINTENANCE_COSTS.developerSupportAnnual),
+  },
+  {
+    item: "API Renewals",
+    scope: "Third-party service continuity",
+    inclusion: "Gemini, Sarvam STT, WhatsApp Cloud API, Mappls, and transactional email stack.",
+    annual: formatInr(MAINTENANCE_COSTS.apiRenewalsAnnual),
+  },
 ];
 
 const maintenanceInclusions: Deliverable[] = [
@@ -511,10 +472,10 @@ const capabilityRows: CapabilityRow[] = [
     jansamadhan: "Yes — 10 languages (Sarvam STT)",
   },
   {
-    capability: "Annual cost (20-ward scale)",
-    cpgrams: "₹10–20 Cr (national)",
-    salesforce: "₹5–15 Cr (licensing)",
-    jansamadhan: "₹15.65 L",
+    capability: "Per-grievance cost basis",
+    cpgrams: "₹83–250",
+    salesforce: "Typically license-heavy",
+    jansamadhan: `${formatInrTwoDecimals(PRIMARY_INFRA_PER_GRIEVANCE)} infra-only · ${formatInrTwoDecimals(PRIMARY_FULL_PER_GRIEVANCE)} full-project`,
   },
 ];
 
@@ -747,23 +708,24 @@ export function getQuotationSections(scale: QuotationScaleModel): QuotationSecti
       label: "06",
       title: "Cost Allocation",
       summary:
-        "Costs are calculated per ward using a population of 93,000 and a 2% monthly complaint filing rate (1,860 complaints/ward/month).",
+        "Primary quotation values are presented for a 1-ward pilot baseline using a 2% monthly complaint filing rate (1,860 complaints/ward/month).",
       content: (
         <>
           <div className={styles.callout} data-reveal>
-            <strong>Ward-unit pricing model:</strong> Delhi has ~250 wards post-delimitation. Costs are quoted per
-            ward for flexible scaling, while shared-plan services are amortized and do not multiply linearly.
+            <strong>Primary baseline:</strong> This quotation uses 1 ward as the professional baseline for Year 1.
+            Scale-up projections can be applied from the same software/cloud model without altering the quoted line
+            item basis.
           </div>
 
-          <p className={styles.tableLabel}>CLOUD INFRASTRUCTURE — PER WARD / MONTH</p>
+          <p className={styles.tableLabel}>SOFTWARE / CLOUD COST MODEL — PRIMARY 1-WARD PILOT BASELINE</p>
           <div className={styles.tableWrap} data-reveal>
             <table className={styles.table}>
               <thead>
                 <tr>
                   <th>Service</th>
                   <th>Billing basis</th>
-                  <th>Plan / tier</th>
-                  <th className={styles.right}>₹ / month</th>
+                  <th>Reference model</th>
+                  <th className={styles.right}>Amount (₹)</th>
                 </tr>
               </thead>
               <tbody>
@@ -782,18 +744,18 @@ export function getQuotationSections(scale: QuotationScaleModel): QuotationSecti
                   </tr>
                 ))}
                 <tr className={styles.rowTotal}>
-                  <td colSpan={3}>Infrastructure total — 1 ward / month</td>
-                  <td className={styles.right}>₹6,520</td>
+                  <td colSpan={3}>Software/cloud reference — 1 ward / month</td>
+                  <td className={styles.right}>{formatInr(SOFTWARE_CLOUD_MONTHLY_ONE_WARD)}</td>
                 </tr>
                 <tr className={styles.rowTotal}>
-                  <td colSpan={3}>Infrastructure total — 1 ward / year</td>
-                  <td className={styles.right}>₹78,240</td>
+                  <td colSpan={3}>Software/cloud reference — 1 ward / year</td>
+                  <td className={styles.right}>{formatInr(SOFTWARE_CLOUD_YEAR1_ONE_WARD)}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <p className={styles.tableLabel}>FULL YEAR-1 QUOTATION — RECOMMENDED 20-WARD PILOT</p>
+          <p className={styles.tableLabel}>FULL YEAR-1 QUOTATION — PRIMARY 1-WARD PILOT (EXCL. GST)</p>
           <div className={styles.tableWrap} data-reveal>
             <table className={styles.table}>
               <thead>
@@ -815,12 +777,23 @@ export function getQuotationSections(scale: QuotationScaleModel): QuotationSecti
                   </tr>
                 ))}
                 <tr className={styles.rowGrand}>
-                  <td colSpan={2}>Total Estimated Cost — Year 1 · 20-Ward Pilot (Excl. Taxes)</td>
-                  <td className={styles.right}>₹28,80,276</td>
+                  <td colSpan={2}>Total Estimated Cost — Year 1 · 1-Ward Pilot (Excl. GST)</td>
+                  <td className={styles.right}>{formatInr(PRIMARY_YEAR1_SUBTOTAL)}</td>
                 </tr>
                 <tr className={styles.rowMaintenance}>
-                  <td colSpan={2}>Per-Grievance Infrastructure Cost</td>
-                  <td className={styles.right}>₹6.43</td>
+                  <td colSpan={2}>Per-grievance infrastructure cost (1-ward, software/cloud only)</td>
+                  <td className={styles.right}>{formatInrTwoDecimals(PRIMARY_INFRA_PER_GRIEVANCE)}</td>
+                </tr>
+                <tr className={styles.rowMaintenance}>
+                  <td colSpan={2}>Per-grievance full-project cost (1-ward, Excl. GST)</td>
+                  <td className={styles.right}>{formatInrTwoDecimals(PRIMARY_FULL_PER_GRIEVANCE)}</td>
+                </tr>
+                <tr className={styles.rowMaintenance}>
+                  <td colSpan={2}>Complaint volume basis (1 ward × 12 months)</td>
+                  <td className={styles.right}>{PRIMARY_YEARLY_COMPLAINTS.toLocaleString("en-IN")}</td>
+                </tr>
+                <tr className={styles.rowMaintenance}>
+                  <td colSpan={3}>GST is excluded from totals above and applied separately at invoicing as per applicable tax rules.</td>
                 </tr>
               </tbody>
             </table>
@@ -833,7 +806,7 @@ export function getQuotationSections(scale: QuotationScaleModel): QuotationSecti
       label: "07",
       title: "Scale Cost Model — Interactive",
       summary:
-        "Drag the slider to project infrastructure cost at any ward count. Shared-plan services are amortized and only scale at capacity thresholds.",
+        "Drag the slider to project Year-1 software/cloud cost from the same 1-ward baseline used in this quotation.",
       content: (
         <>
           <div className={styles.sliderRow} data-reveal>
@@ -879,19 +852,30 @@ export function getQuotationSections(scale: QuotationScaleModel): QuotationSecti
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Scale</th>
-                  <th>Annual Infra</th>
-                  <th className={styles.right}>Per-Grievance</th>
+                  <th>Item</th>
+                  <th>Scope</th>
+                  <th>What's included</th>
+                  <th className={styles.right}>Annual Cost (₹)</th>
                 </tr>
               </thead>
               <tbody>
                 {maintenanceRows.map((row) => (
-                  <tr key={row.scale}>
-                    <td>{row.scale}</td>
-                    <td>{row.annual}</td>
-                    <td className={styles.right}>{row.perGrievance}</td>
+                  <tr key={row.item}>
+                    <td>{row.item}</td>
+                    <td>{row.scope}</td>
+                    <td>{row.inclusion}</td>
+                    <td className={styles.right}>{row.annual}</td>
                   </tr>
                 ))}
+                <tr className={styles.rowGrand}>
+                  <td colSpan={3}>Annual Maintenance Total (Post Year-1)</td>
+                  <td className={styles.right}>{formatInr(MAINTENANCE_TOTAL_ANNUAL)}</td>
+                </tr>
+                <tr className={styles.rowMaintenance}>
+                  <td colSpan={4}>
+                    Annual maintenance cloud baseline corresponds to approximately {formatInr(Math.round(MAINTENANCE_COSTS.cloudInfrastructureAnnual / 12))} per month.
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -918,19 +902,19 @@ export function getQuotationSections(scale: QuotationScaleModel): QuotationSecti
               <p className={styles.compareSub}>National scale estimate · DARPG budget</p>
             </article>
             <article className={cx(styles.compareCard, styles.compareAccent)} data-reveal>
-              <p className={styles.compareLabel}>JanSamadhan cost / grievance</p>
-              <p className={styles.compareValue}>₹6.43</p>
-              <p className={styles.compareSub}>20-ward Delhi pilot projection</p>
+              <p className={styles.compareLabel}>JanSamadhan infra-only / grievance</p>
+              <p className={styles.compareValue}>{formatInrTwoDecimals(PRIMARY_INFRA_PER_GRIEVANCE)}</p>
+              <p className={styles.compareSub}>1-ward Year-1 software/cloud baseline</p>
             </article>
             <article className={styles.compareCard} data-reveal>
               <p className={styles.compareLabel}>Cost advantage</p>
-              <p className={styles.compareValue}>13–39×</p>
-              <p className={styles.compareSub}>Cheaper per resolved grievance</p>
+              <p className={styles.compareValue}>{`${Math.round(MIN_ADVANTAGE_MULTIPLIER)}–${Math.round(MAX_ADVANTAGE_MULTIPLIER)}×`}</p>
+              <p className={styles.compareSub}>Based on infra-only per-grievance baseline</p>
             </article>
             <article className={styles.compareCard} data-reveal>
-              <p className={styles.compareLabel}>Feature depth vs CPGRAMS</p>
-              <p className={styles.compareValue}>5×</p>
-              <p className={styles.compareSub}>AI + spatial + field ops + WhatsApp</p>
+              <p className={styles.compareLabel}>Traditional-vendor delta</p>
+              <p className={styles.compareValue}>60–70%</p>
+              <p className={styles.compareSub}>Lower estimated cost vs conventional builds</p>
             </article>
           </div>
 
