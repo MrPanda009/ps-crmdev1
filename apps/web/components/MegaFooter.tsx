@@ -341,6 +341,13 @@ export function MegaFooter({
           </p>
           <div className="flex gap-6">
             <a
+              href="/documentation"
+              className="text-sm transition-colors mega-bottom-link"
+              style={{ color: `var(--bottom-link-color, ${bottomLinkColor})` }}
+            >
+              Documentation
+            </a>
+            <a
               href="/privacy"
               className="text-sm transition-colors mega-bottom-link"
               style={{ color: `var(--bottom-link-color, ${bottomLinkColor})` }}

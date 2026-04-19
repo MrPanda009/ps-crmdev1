@@ -11,6 +11,7 @@ export async function middleware(request: NextRequest) {
     pathname === '/' ||
     pathname === '/login' ||
     pathname === '/quotation' ||
+    pathname === '/documentation' ||
     pathname.startsWith('/auth')
   const isApiRoute = pathname.startsWith('/api')
 

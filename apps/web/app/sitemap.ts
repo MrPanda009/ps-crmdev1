@@ -12,6 +12,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/terms',
     '/leaderboard',
     '/quotation',
+    '/documentation',
     '/citizen',
   ];
 
