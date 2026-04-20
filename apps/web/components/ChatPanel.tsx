@@ -199,7 +199,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tbl_desc: "Description",
     tbl_digipin: "DIGIPIN",
     detecting: "Detecting…",
-    cancelled: "Okay, I've cancelled that. What else can I help you with?"
+    cancelled: "Okay, I've cancelled that. What else can I help you with?",
+    photo_mandatory: "⚠️ Photo evidence is required for all civic reports. Please upload a photo of the problem to proceed."
   },
   "hi-IN": {
     greeting: "नमस्ते! 🙏 मैं **जनसमाधान AI** हूँ।\nआप जिस नागरिक समस्या की रिपोर्ट करना चाहते हैं, उसके बारे में मुझे बताएं — या समस्या की फ़ोटो अपलोड करने के लिए **+** बटन पर टैप करें!",
@@ -235,7 +236,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tbl_desc: "विवरण",
     tbl_digipin: "डिजिपिन",
     detecting: "पता लगाया जा रहा है...",
-    cancelled: "ठीक है, मैंने इसे रद्द कर दिया है। मैं आपकी और क्या मदद कर सकता हूँ?"
+    cancelled: "ठीक है, मैंने इसे रद्द कर दिया है। मैं आपकी और क्या मदद कर सकता हूँ?",
+    photo_mandatory: "⚠️ सभी नागरिक रिपोर्टों के लिए फोटो प्रमाण आवश्यक है। आगे बढ़ने के लिए कृपया समस्या की एक फोटो अपलोड करें।"
   },
   "ta-IN": {
     greeting: "வணக்கம்! 🙏 நான் **JanSamadhan AI**.\nநீங்கள் புகாரளிக்க விரும்பும் குடிமைப் பிரச்சினையைப் பற்றி என்னிடம் கூறுங்கள் — அல்லது সমস্যার புகைப்படத்தைப் பதிவேற்ற **+** பொத்தானைத் தட்டவும்!",
@@ -271,7 +273,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tbl_desc: "விளக்கம்",
     tbl_digipin: "DIGIPIN",
     detecting: "கண்டறியப்படுகிறது…",
-    cancelled: "சரி, நான் அதை ரத்து செய்துவிட்டேன். நான் வேறு என்ன உதவி செய்ய முடியும்?"
+    cancelled: "சரி, நான் அதை ரத்து செய்துவிட்டேன். நான் வேறு என்ன உதவி செய்ய முடியும்?",
+    photo_mandatory: "⚠️ அனைத்து குடிமை அறிக்கைகளுக்கும் புகைப்பட சான்று தேவை. தொடர சிக்கலின் புகைப்படத்தைப் பதிவேற்றவும்."
   },
   "te-IN": {
     greeting: "నమస్తే! 🙏 నేను **JanSamadhan AI** ని.\nమీరు రిపోర్ట్ చేయాలనుకుంటున్న పౌర సమస్య గురించి నాకు చెప్పండి — లేదా సమస్య ఫోటోను అప్‌లోడ్ చేయడానికి **+** బటన్‌ను నొక్కండి!",
@@ -307,7 +310,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tbl_desc: "వివరణ",
     tbl_digipin: "DIGIPIN",
     detecting: "కనుగొంటోంది…",
-    cancelled: "సరే, నేను దానిని రద్దు చేసాను. నేను మీకు ఇంకా ఏ విధంగా సహాయపడగలను?"
+    cancelled: "సరే, నేను దానిని రద్దు చేసాను. నేను మీకు ఇంకా ఏ విధంగా సహాయపడగలను?",
+    photo_mandatory: "⚠️ అన్ని పౌర నివేదికల కోసం ఫోటో సాక్ష్యం అవసరం. కొనసాగడానికి దయచేసి సమస్య యొక్క ఫోటోను అప్‌లోడ్ చేయండి."
   },
   "kn-IN": {
     greeting: "ನಮಸ್ಕಾರ! 🙏 ನಾನು **JanSamadhan AI**.\nನೀವು ವರದಿ ಮಾಡಲು ಬಯಸುವ ನಾಗರಿಕ ಸಮಸ್ಯೆಯ ಬಗ್ಗೆ ನನಗೆ ತಿಳಿಸಿ — ಅಥವಾ ಸಮಸ್ಯೆಯ ಫೋಟೋವನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಲು **+** ಬಟನ್ ಟ್ಯಾಪ್ ಮಾಡಿ!",
@@ -343,7 +347,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tbl_desc: "ವಿವರಣೆ",
     tbl_digipin: "DIGIPIN",
     detecting: "ಪತ್ತೆಹಚ್ಚಲಾಗುತ್ತಿದೆ…",
-    cancelled: "ಸರಿ, ನಾನು ಅದನ್ನು ರದ್ದುಗೊಳಿಸಿದ್ದೇನೆ. ನಾನು ನಿಮಗೆ ಬೇರೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?"
+    cancelled: "ಸರಿ, ನಾನು ಅದನ್ನು ರದ್ದುಗೊಳಿಸಿದ್ದೇನೆ. ನಾನು ನಿಮಗೆ ಬೇರೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?",
+    photo_mandatory: "⚠️ ಎಲ್ಲಾ ನಾಗರಿಕ ವರದಿಗಳಿಗೆ ಫೋಟೋ ಪುರಾವೆ ಅಗತ್ಯವಿದೆ. ಮುಂದುವರಿಯಲು ದಯವಿಟ್ಟು ಸಮಸ್ಯೆಯ ಫೋಟೋವನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ."
   },
   "ml-IN": {
     greeting: "നമസ്കാരം! 🙏 ഞാൻ **JanSamadhan AI** ആണ്.\nനിങ്ങൾ റിപ്പോർട്ട് ചെയ്യാൻ ആഗ്രഹിക്കുന്ന സിവിക് പ്രശ്നത്തെക്കുറിച്ച് എന്നോട് പറയുക — അല്ലെങ്കിൽ പ്രശ്നത്തിന്റെ ഫോട്ടോ അപ്‌ലോഡ് ചെയ്യാൻ **+** ബട്ടൺ ടാപ്പ് ചെയ്യുക!",
@@ -379,7 +384,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tbl_desc: "വിവരണം",
     tbl_digipin: "DIGIPIN",
     detecting: "കണ്ടെത്തുന്നു…",
-    cancelled: "ശരി, ഞാൻ അത് റദ്ദാക്കി. എനിക്ക് നിങ്ങളെ വേറെ എങ്ങനെ സഹായിക്കാനാകും?"
+    cancelled: "ശരി, ഞാൻ അത് റദ്ദാക്കി. എനിക്ക് നിങ്ങളെ വേറെ എങ്ങനെ സഹായിക്കാനാകും?",
+    photo_mandatory: "⚠️ എല്ലാ സിവിക് റിപ്പോർട്ടുകൾക്കും ഫോട്ടോ തെളിവ് ആവശ്യമാണ്. തുടരുന്നതിന് ദയവായി പ്രശ്നത്തിന്റെ ഫോട്ടോ അപ്‌ലോഡ് ചെയ്യുക."
   },
   "bn-IN": {
     greeting: "নমস্কার! 🙏 আমি **JanSamadhan AI**।\nআপনি যে নাগরিক সমস্যার কথা জানাতে চান সে সম্পর্কে আমাকে বলুন — অথবা সমস্যার একটি ছবি আপলোড করতে **+** বোতামে আলতো চাপুন!",
@@ -415,7 +421,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tbl_desc: "বিবরণ",
     tbl_digipin: "DIGIPIN",
     detecting: "সন্ধান করা হচ্ছে…",
-    cancelled: "ঠিক আছে, আমি এটি বাতিল করেছি। আমি আর কীভাবে আপনাকে সাহায্য করতে পারি?"
+    cancelled: "ঠিক আছে, আমি এটি বাতিল করেছি। আমি আর কীভাবে আপনাকে সাহায্য করতে পারি?",
+    photo_mandatory: "⚠️ সমস্ত নাগরিক প্রতিবেদনের জন্য ফটো প্রমাণ প্রয়োজন। এগিয়ে যেতে অনুগ্রহ করে সমস্যার একটি ছবি আপলোড করুন।"
   },
   "mr-IN": {
     greeting: "नमस्कार! 🙏 मी **JanSamadhan AI** आहे.\nतुम्हाला नोंदवायच्या असलेल्या नागरी समस्येबद्दल मला सांगा — किंवा समस्येचा फोटो अपलोड करण्यासाठी **+** बटणावर टॅप करा!",
@@ -451,7 +458,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tbl_desc: "वर्णन",
     tbl_digipin: "DIGIPIN",
     detecting: "शोधत आहे…",
-    cancelled: "ठीक आहे, मी ते रद्द केले आहे. मी तुम्हाला आणखी कशी मदत करू शकतो?"
+    cancelled: "ठीक आहे, मी ते रद्द केले आहे. मी तुम्हाला आणखी कशी मदत करू शकतो?",
+    photo_mandatory: "⚠️ सर्व नागरी अहवालांसाठी फोटो पुरावा आवश्यक आहे. सुरू ठेवण्यासाठी कृपया समस्येचा फोटो अपलोड करा."
   },
   "gu-IN": {
     greeting: "નમસ્તે! 🙏 હું **JanSamadhan AI** છું.\nતમે જે નાગરિક સમસ્યા નોંધાવવા માંગતા હો તે વિશે મને જણાવો — અથવા સમસ્યાનો ફોટો અપલોડ કરવા માટે **+** બટન પર ટેપ કરો!",
@@ -487,7 +495,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tbl_desc: "વર્ણન",
     tbl_digipin: "DIGIPIN",
     detecting: "શોધી રહ્યાં છીએ…",
-    cancelled: "ઠીક છે, મેં તે રદ કર્યું છે. હું તમને બીજી કઈ રીતે મદદ કરી શકું?"
+    cancelled: "ઠીક છે, મેં તે રદ કર્યું છે. હું તમને બીજી કઈ રીતે મદદ કરી શકું?",
+    photo_mandatory: "⚠️ તમામ નાગરિક અહેવાલો માટે ફોટો પુરાવો જરૂરી છે. આગળ વધવા માટે કૃપા કરીને સમસ્યાનો ફોટો અપલોડ કરો."
   },
   "pa-IN": {
     greeting: "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! 🙏 ਮੈਂ **JanSamadhan AI** ਹਾਂ।\nਮੈਨੂੰ ਉਸ ਨਾਗਰਿਕ ਸਮੱਸਿਆ ਬਾਰੇ ਦੱਸੋ ਜਿਸਦੀ ਤੁਸੀਂ ਰਿਪੋਰਟ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ — ਜਾਂ ਸਮੱਸਿਆ ਦੀ ਫੋਟੋ ਅੱਪਲੋਡ ਕਰਨ ਲਈ **+** ਬਟਨ 'ਤੇ ਟੈਪ ਕਰੋ!",
@@ -523,7 +532,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     tbl_desc: "ਵਰਣਨ",
     tbl_digipin: "DIGIPIN",
     detecting: "ਲੱਭਿਆ ਜਾ ਰਿਹਾ ਹੈ…",
-    cancelled: "ਠੀਕ ਹੈ, ਮੈਂ ਇਸਨੂੰ ਰੱਦ ਕਰ ਦਿੱਤਾ ਹੈ। ਮੈਂ ਤੁਹਾਡੀ ਹੋਰ ਕੀ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?"
+    cancelled: "ਠੀਕ ਹੈ, ਮੈਂ ਇਸਨੂੰ ਰੱਦ ਕਰ ਦਿੱਤਾ ਹੈ। ਮੈਂ ਤੁਹਾਡੀ ਹੋਰ ਕੀ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?",
+    photo_mandatory: "⚠️ ਸਾਰੀਆਂ ਨਾਗਰਿਕ ਰਿਪੋਰਟਾਂ ਲਈ ਫੋਟੋ ਸਬੂਤ ਲੋੜੀਂਦੇ ਹਨ। ਕਿਰਪਾ ਕਰਕੇ ਅੱਗੇ ਵਧਣ ਲਈ ਸਮੱਸਿਆ ਦੀ ਇੱਕ ਫੋਟੋ ਅੱਪਲੋਡ ਕਰੋ।"
   }
 };
 
@@ -1085,6 +1095,10 @@ export default function ChatPanel({ onClose: _onClose }: { onClose?: () => void 
 
     // If the user typed YES and we have a pending text-based complaint
     if (pendingComplaint && getConfirmationPattern().test(trimmed)) {
+      if (!pendingImageFile && !pendingImageDataUrl) {
+         addBotMessage(t(selectedLanguage, "photo_mandatory"));
+         return;
+      }
       if (!locationConfirmed || !pendingLocation) {
         addBotMessage(t(selectedLanguage, "confirm_location_first"));
         return;

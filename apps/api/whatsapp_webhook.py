@@ -290,21 +290,120 @@ async def handle_text(phone: str, raw_text: str):
         await link_whatsapp_account(phone, code)
         return
 
-    # ── fallback loop guard ────────────────────────────────────────────────────
-    count = session.get("fallback_count", 0) + 1
-    if count >= 3:
-        await delete_session(phone)
-        await send_text(phone, 
-            "⚠️ It seems I'm having trouble understanding. I've reset our conversation.\n\n"
-            "Please send *Hi* to see the menu or send a clear *photo* of a civic issue."
-        )
-        return
-
-    session["fallback_count"] = count
-    await save_session(phone, session)
+    # ── fallback: AI Conversation & Issue Extraction ──────────────────────────
+    # If not a command, we give the text to Gemini.
+    # Architecture: User can describe via text to "get context", but MUST provide photo to submit.
     
+    # Check if we already have an image in session
+    has_image = bool(session.get("image_bytes"))
+    
+    # Collect history (simulated from fallback_count or simple session)
+    # For now, we'll just send the current text with a system prompt.
+    # In a full impl, we'd store last 5 messages in Redis.
+    
+    try:
+        from shared import CHILD_CATEGORIES
+        child_list = "\n".join([f"{id}: {c['name']}" for id, c in CHILD_CATEGORIES.items()])
+        
+        # System prompt for WhatsApp (parities with Web lib/gemini.ts)
+        prompt = f"""You are JanSamadhan AI, a helpful civic complaint assistant for Delhi municipal services.
+        Your job: Summarize the user's issue and output structured JSON.
+        
+        REQUIRED FIELDS:
+        - title (5-10 word summary)
+        - child_id (integer from the taxonomy below)
+        - severity (Low|Medium|High|Critical)
+        - description (2-3 sentences)
+        - confidence (float between 0 and 1)
+        
+        CATEGORIES:
+        {child_list}
+        
+        CIVIC FOCUS & SAFETY RULES:
+        1. Greet warmly on the first message.
+        2. If the user says something unrelated to civic problems (fun talk, jokes), politely steer them back.
+        3. PHOTO MANDATE: A photo is REQUIRED for final submission. If 'has_image' is false, you MUST include a reminder in your "reply".
+        
+        Extraction Mode (Only when you have all details):
+        Return ONLY JSON:
+        {{
+          "extracted": {{ "title": "...", "child_id": 12, "severity": "...", "description": "...", "confidence": 0.0 }},
+          "reply": "[Friendly summary]. [If no image: Please send a photo to proceed], then we can submit."
+        }}
+        """
+        
+        # Call Gemini (text-only)
+        for model_name in [GEMINI_PRIMARY_MODEL, GEMINI_FALLBACK_MODEL]:
+            try:
+                response = gemini_client.models.generate_content(
+                    model=model_name,
+                    contents=[f"System Context: {prompt}\nUser: {raw_text}\nHas Image in Session: {has_image}"]
+                )
+                text_raw = response.text.strip()
+                if "```json" in text_raw:
+                    text_raw = text_raw.split("```json")[1].split("```")[0].strip()
+                elif "```" in text_raw:
+                    text_raw = text_raw.split("```")[1].split("```")[0].strip()
+                
+                res_json = json.loads(text_raw)
+                extracted = res_json.get("extracted")
+                bot_reply = res_json.get("reply", "I've noted that.")
+                
+                if extracted and extracted.get("confidence", 0) > 0.7:
+                    # Enforce Photo Mandate
+                    if not has_image:
+                        # Store extracted but don't proceed to location
+                        session.update({
+                            "extracted_from_text": extracted,
+                            "state": "awaiting_photo",
+                            "fallback_count": 0
+                        })
+                        await save_session(phone, session)
+                        await send_text(phone, f"{bot_reply}\n\n📸 *Important:* I've summarized the issue, but I need a photo to proceed with the official report. Please send one now.")
+                        return
+                    else:
+                        # Already have image! Build preview and proceed to location
+                        # (Reuse image analysis logic but with these text details)
+                        session.update({
+                            "gemini_result": {
+                                "child_id": extracted["child_id"],
+                                "title": extracted["title"],
+                                "description": extracted["description"],
+                                "severity": extracted["severity"],
+                                "confidence": extracted["confidence"]
+                            },
+                            "state": "awaiting_location",
+                            "fallback_count": 0
+                        })
+                        await save_session(phone, session)
+                        # Now trigger location request
+                        await handle_image_completion_location_flow(phone, session)
+                        return
+                else:
+                    # Just a chat/reply
+                    await send_text(phone, bot_reply)
+                    session["fallback_count"] = count
+                    await save_session(phone, session)
+                    return
+            except Exception as e:
+                print(f"[Gemini Text Flow Error] {e}")
+                continue
+
+    except Exception as e:
+        print(f"[WhatsApp Chat Flow Error] {e}")
+
     await send_text(phone,
-        "I didn't understand that. Please use the Menu by sending *Hi* or send a *photo* to report an issue."
+        "I'm sorry, I'm only here to help with civic issues like potholes or garbage. Please send a *photo* to start a report."
+    )
+
+
+async def handle_image_completion_location_flow(phone: str, session: dict):
+    """Helper to trigger the location request after an image is confirmed/extracted."""
+    result = session["gemini_result"]
+    category = CHILD_CATEGORIES[result["child_id"]]
+    await send_location_request(phone, 
+        f"✅ *Issue Identified:* {category['name']}\n\n"
+        f"To submit this report, I need your location. Please tap the button below to share it."
     )
 
 
@@ -430,14 +529,21 @@ async def show_ticket_details(phone: str, ticket_id_str: str):
 
 
 async def handle_image(phone: str, image_id: str, caption: str = ""):
+    session = await get_session(phone)
+    
+    # Check if we were specifically waiting for a photo for an already described issue
+    extracted_text = session.get("extracted_from_text")
+    if not caption and extracted_text and session.get("state") == "awaiting_photo":
+        # Use the previously extracted description
+        caption = extracted_text.get("description", "")
+        print(f"[WhatsApp] Resuming from awaiting_photo state. Using description: {caption[:50]}...")
+
     # 1. Check if we already have a valid description (min 20 chars)
-    # If not, we ask for it and hold the image in session.
     is_valid, text_err = validate_text_quality(caption)
     
     if not is_valid:
         # Prompt for description and store image_id for later
         log_event("whatsapp_reprompt", level="INFO", reason_code="TEXT_LOW_QUALITY", payload={"phone": phone})
-        session = await get_session(phone)
         session.update({
             "pending_image_id": image_id,
             "state": "awaiting_description",
