@@ -46,6 +46,7 @@ from shared import (
     redis_client,
     is_within_india,
     validate_text_quality,
+    log_event,
 )
 
 
@@ -434,6 +435,7 @@ async def handle_image(phone: str, image_id: str, caption: str = ""):
     
     if not is_valid:
         # Prompt for description and store image_id for later
+        log_event("whatsapp_reprompt", level="INFO", reason_code="TEXT_LOW_QUALITY", payload={"phone": phone})
         session = await get_session(phone)
         session.update({
             "pending_image_id": image_id,
@@ -477,6 +479,7 @@ async def handle_image(phone: str, image_id: str, caption: str = ""):
     decision = result.get("decision", "valid_issue")
 
     if decision == "explicit_blocked":
+        log_event("whatsapp_rejected", level="WARNING", reason_code="AI_SAFETY_BLOCKED", payload={"phone": phone})
         await send_text(phone,
             "⛔ *Content Blocked*\n\n"
             "This image has been flagged by our content safety filter.\n"
@@ -488,6 +491,7 @@ async def handle_image(phone: str, image_id: str, caption: str = ""):
 
     if decision == "non_civic_rejected":
         reason = result.get("decision_reason", "This image doesn't appear to show a civic issue.")
+        log_event("whatsapp_rejected", level="INFO", reason_code="NON_CIVIC_ISSUE", payload={"phone": phone, "reason": reason})
         await send_text(phone,
             f"❌ *Not a Civic Issue*\n\n"
             f"{reason}\n\n"
@@ -532,6 +536,7 @@ async def handle_location(phone: str, lat: float, lng: float):
 
     # 1. Boundary Check (India only)
     if not is_within_india(lat, lng):
+        log_event("whatsapp_rejected", level="WARNING", reason_code="GEO_OOB", payload={"phone": phone, "lat": lat, "lng": lng})
         await send_text(phone, "📍 *Out of Bounds*\n\nJanSamadhan is currently only available for issues within India. Please report problems from a valid location in India.")
         await delete_session(phone)
         return
@@ -697,6 +702,8 @@ async def confirm_ticket(phone: str, session: dict):
     inserted  = response.data[0]
     ticket_id = inserted.get("ticket_id") or inserted.get("id", "PENDING")
     ticket_details_url = build_ticket_details_url(inserted.get("id"))
+
+    log_event("whatsapp_ticket_created", level="INFO", reason_code="VALID_ISSUE", payload={"phone": phone, "ticket_id": ticket_id})
 
     await delete_session(phone)   # clear session
 

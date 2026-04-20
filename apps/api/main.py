@@ -50,6 +50,7 @@ from shared import (
     AI_SERVICE_URL,
     is_within_india,
     validate_text_quality,
+    log_event,
 )
 
 # Global constants for direct Supabase REST API calls (bypassing supabase-py bugs)
@@ -191,6 +192,7 @@ class TicketPreview(BaseModel):
     # Phase 2: Policy-driven decision fields
     decision: str = "valid_issue"  # valid_issue | explicit_blocked | non_civic_rejected | low_confidence
     decision_reason: Optional[str] = None
+    reason_code: Optional[str] = "VALID_ISSUE"
 
 
 class TicketCreated(BaseModel):
@@ -884,11 +886,13 @@ async def analyze(
 
     # Coordinate validation (India only)
     if not is_within_india(latitude, longitude):
+        log_event("analyze_rejected", level="WARNING", reason_code="GEO_OOB", payload={"lat": latitude, "lng": longitude})
         raise HTTPException(status_code=400, detail="Service is only available in India.")
 
     # Text quality validation (min 20 chars)
     is_valid_text, text_err = validate_text_quality(user_text)
     if not is_valid_text:
+        log_event("analyze_rejected", level="WARNING", reason_code="TEXT_LOW_QUALITY", payload={"text_len": len(user_text)})
         raise HTTPException(status_code=400, detail=text_err)
 
     image_data = await image.read()
@@ -1035,6 +1039,7 @@ async def analyze(
         user_text=user_text,
         confirm_prompt="✅ Ticket preview ready. Type \"confirm\" or \"submit\" to raise this ticket, or describe the issue differently to re-analyse.",
         decision=DECISION_VALID,
+        reason_code="VALID_ISSUE",
     )
 
 
@@ -1083,6 +1088,7 @@ async def confirm(
 
     # Coordinate validation (India only)
     if not is_within_india(latitude, longitude):
+        log_event("confirm_rejected", level="WARNING", reason_code="GEO_OOB", payload={"lat": latitude, "lng": longitude, "citizen_id": citizen_id})
         raise HTTPException(status_code=400, detail="Service is only available in India.")
 
     if child_id not in CHILD_CATEGORIES:

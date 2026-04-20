@@ -736,3 +736,15 @@ def validate_text_quality(text: Optional[str]) -> tuple[bool, str]:
         return False, f"Description is too short ({len(clean_text)} chars). Please provide at least 20 characters."
     
     return True, ""
+
+
+def log_event(event_name: str, level: str = "INFO", reason_code: Optional[str] = None, payload: Optional[Dict[str, Any]] = None):
+    """Structured JSON logger for observability."""
+    entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "level": level,
+        "event": event_name,
+        "reason_code": reason_code,
+        "payload": payload or {}
+    }
+    print(json.dumps(entry))
