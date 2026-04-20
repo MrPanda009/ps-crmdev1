@@ -2,11 +2,22 @@
 // Keeps the SARVAM_API_KEY on the server; the client only sends audio.
 
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 
 const SARVAM_API_KEY = process.env.SARVAM_API_KEY;
 const SARVAM_STT_URL = "https://api.sarvam.ai/speech-to-text";
 
 export async function POST(req: NextRequest) {
+  // ── Rate limiting: 10 STT requests per minute per IP ──
+  const rlKey = rateLimitKey(req, "stt");
+  const rl = checkRateLimit(rlKey, RATE_LIMITS.stt);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many voice requests. Please wait before trying again." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
   if (!SARVAM_API_KEY) {
     return NextResponse.json(
       { error: "SARVAM_API_KEY is not configured on the server." },

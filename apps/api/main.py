@@ -16,7 +16,7 @@ from typing import Optional, Dict, List, Any
 from math import radians, sin, cos, sqrt, atan2
 import httpx
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header, Response
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header, Response, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -97,8 +97,64 @@ app.add_middleware(
     allow_origins=origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "x-request-id"],
+    allow_headers=["Content-Type", "Authorization", "x-request-id", "x-idempotency-key"],
 )
+
+
+# ── Rate limiting (in-memory sliding window) ──────────────────────────────────
+_rate_limit_store: Dict[str, List[float]] = {}
+_RATE_LIMIT_CLEANUP_INTERVAL = 60  # seconds
+_last_rate_limit_cleanup = time.time()
+
+
+def _check_rate_limit(key: str, max_requests: int, window_seconds: int) -> bool:
+    """Return True if the request is allowed, False if rate-limited."""
+    global _last_rate_limit_cleanup
+    now = time.time()
+
+    # Periodic cleanup to prevent memory leak
+    if now - _last_rate_limit_cleanup > _RATE_LIMIT_CLEANUP_INTERVAL:
+        _last_rate_limit_cleanup = now
+        for k in list(_rate_limit_store.keys()):
+            _rate_limit_store[k] = [t for t in _rate_limit_store[k] if now - t < window_seconds * 2]
+            if not _rate_limit_store[k]:
+                del _rate_limit_store[k]
+
+    timestamps = _rate_limit_store.get(key, [])
+    timestamps = [t for t in timestamps if now - t < window_seconds]
+
+    if len(timestamps) >= max_requests:
+        _rate_limit_store[key] = timestamps
+        return False
+
+    timestamps.append(now)
+    _rate_limit_store[key] = timestamps
+    return True
+
+
+# ── Idempotency cache (prevents duplicate inserts on retries) ─────────────────
+_idempotency_cache: Dict[str, Dict[str, Any]] = {}
+_IDEMPOTENCY_TTL_SECONDS = 300  # 5 minutes
+
+
+def _get_idempotent_result(key: str) -> Optional[Dict[str, Any]]:
+    entry = _idempotency_cache.get(key)
+    if not entry:
+        return None
+    if time.time() > entry.get("expires_at", 0):
+        _idempotency_cache.pop(key, None)
+        return None
+    return entry.get("response")
+
+
+def _set_idempotent_result(key: str, response: Dict[str, Any]) -> None:
+    # Evict expired entries if cache is large
+    if len(_idempotency_cache) > 1000:
+        now = time.time()
+        for k in list(_idempotency_cache.keys()):
+            if now > _idempotency_cache[k].get("expires_at", 0):
+                del _idempotency_cache[k]
+    _idempotency_cache[key] = {"response": response, "expires_at": time.time() + _IDEMPOTENCY_TTL_SECONDS}
 
 
 # =========================================================
@@ -505,13 +561,27 @@ class ChatHistory(BaseModel):
 
 
 @app.get("/api/chat/history/{session_id}")
-async def get_chat_history(session_id: str):
-    """Retrieve chat history from Redis for a given session."""
+async def get_chat_history(
+    session_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
+    """Retrieve chat history from Redis for a given session (auth-scoped)."""
+    # Auth check — scope session to authenticated user
+    citizen_id = get_citizen_id_from_token(authorization)
+
+    # Rate limiting: 20 chat history reads per minute per IP
+    client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown").split(",")[0].strip()
+    if not _check_rate_limit(f"chat_history:{client_ip}", max_requests=20, window_seconds=60):
+        raise HTTPException(status_code=429, detail="Too many requests. Please slow down.")
+
     if not redis_client:
         return {"messages": []}
     
     try:
-        data = redis_client.get(f"chat:history:{session_id}")
+        # Key is scoped to citizen_id to prevent cross-user access
+        scoped_key = f"chat:history:{citizen_id}:{session_id}"
+        data = redis_client.get(scoped_key)
         if data:
             return {"messages": json.loads(data)}
         return {"messages": []}
@@ -521,15 +591,28 @@ async def get_chat_history(session_id: str):
 
 
 @app.post("/api/chat/history/{session_id}")
-async def save_chat_history(session_id: str, history: ChatHistory):
-    """Save chat history to Redis with a 24-hour TTL."""
+async def save_chat_history(
+    session_id: str,
+    history: ChatHistory,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
+    """Save chat history to Redis with a 24-hour TTL (auth-scoped)."""
+    # Auth check — scope session to authenticated user
+    citizen_id = get_citizen_id_from_token(authorization)
+
+    # Rate limiting
+    client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown").split(",")[0].strip()
+    if not _check_rate_limit(f"chat_history:{client_ip}", max_requests=20, window_seconds=60):
+        raise HTTPException(status_code=429, detail="Too many requests. Please slow down.")
+
     if not redis_client:
         return {"status": "ok"}
     
     try:
-        # Store for 24 hours (persists across browser sessions while logged in)
+        scoped_key = f"chat:history:{citizen_id}:{session_id}"
         redis_client.setex(
-            f"chat:history:{session_id}",
+            scoped_key,
             86400, 
             json.dumps(history.messages)
         )
@@ -540,13 +623,20 @@ async def save_chat_history(session_id: str, history: ChatHistory):
 
 
 @app.delete("/api/chat/history/{session_id}")
-async def delete_chat_history(session_id: str):
-    """Delete chat history from Redis on logout."""
+async def delete_chat_history(
+    session_id: str,
+    authorization: Optional[str] = Header(None),
+):
+    """Delete chat history from Redis on logout (auth-scoped)."""
+    # Auth check — scope session to authenticated user
+    citizen_id = get_citizen_id_from_token(authorization)
+
     if not redis_client:
         return {"status": "ok"}
     
     try:
-        redis_client.delete(f"chat:history:{session_id}")
+        scoped_key = f"chat:history:{citizen_id}:{session_id}"
+        redis_client.delete(scoped_key)
         return {"status": "ok"}
     except Exception as e:
         print(f"Redis chat history delete error: {e}")
@@ -756,6 +846,7 @@ async def analyze_options() -> Response:
 
 @app.post("/analyze", response_model=TicketPreview)
 async def analyze(
+    request: Request,
     image: UploadFile = File(...),
     user_text: str = Form(...),
     latitude: float = Form(...),
@@ -764,6 +855,11 @@ async def analyze(
     timestamp: str = Form(...),
     authorization: Optional[str] = Header(None),
 ):
+    # Rate limiting: 10 analysis requests per minute per IP
+    client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown").split(",")[0].strip()
+    if not _check_rate_limit(f"analyze:{client_ip}", max_requests=10, window_seconds=60):
+        raise HTTPException(status_code=429, detail="Too many analysis requests. Please slow down.")
+
     # Auth check — must be logged in
     get_citizen_id_from_token(authorization)
 
@@ -826,6 +922,7 @@ async def confirm_options() -> Response:
 
 @app.post("/confirm", response_model=TicketCreated)
 async def confirm(
+    request: Request,
     image: UploadFile = File(...),
     user_text: str = Form(...),
     latitude: float = Form(...),
@@ -841,7 +938,20 @@ async def confirm(
     force_submit: bool = Form(False),
     authorization: Optional[str] = Header(None),
     user_agent: Optional[str] = Header(None),
+    x_idempotency_key: Optional[str] = Header(None),
 ):
+    # Rate limiting: 5 confirm requests per minute per IP
+    client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown").split(",")[0].strip()
+    if not _check_rate_limit(f"confirm:{client_ip}", max_requests=5, window_seconds=60):
+        raise HTTPException(status_code=429, detail="Too many submission requests. Please slow down.")
+
+    # Idempotency: return cached result for duplicate request keys
+    idem_key = (x_idempotency_key or "").strip()
+    if idem_key:
+        cached = _get_idempotent_result(idem_key)
+        if cached:
+            return JSONResponse(content=cached)
+
     # 1. Extract citizen_id from JWT
     citizen_id = get_citizen_id_from_token(authorization)
 
@@ -1002,6 +1112,10 @@ async def confirm(
         event_type="complaint_created",
         status="submitted",
     ))
+
+    # Cache successful result for idempotency
+    if idem_key:
+        _set_idempotent_result(idem_key, response_obj.model_dump())
 
     return response_obj
 

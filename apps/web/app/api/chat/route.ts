@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SYSTEM_PROMPT } from "@/lib/gemini";
 import type { ChatMessage, GeminiResponse, ExtractedComplaint } from "@/lib/gemini";
+import { checkRateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 
 const GEMINI_API_KEY =
   process.env.GEMINI_API_KEY ??
@@ -90,6 +91,16 @@ function sanitizeExtracted(value: unknown): ExtractedComplaint | null {
  * Returns a structured GeminiResponse (reply + optional extracted complaint).
  */
 export async function POST(req: NextRequest): Promise<NextResponse<GeminiResponse | { error: string }>> {
+  // ── Rate limiting ──
+  const rlKey = rateLimitKey(req, "chat");
+  const rl = checkRateLimit(rlKey, RATE_LIMITS.chat);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { ...withCors(req, { status: 429 }), headers: { ...getCorsHeaders(req.headers.get("origin")), "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
   if (!GEMINI_API_KEY) {
     return NextResponse.json(
       { error: "Gemini API key not configured (set GEMINI_API_KEY or GOOGLE_API_KEY)" },

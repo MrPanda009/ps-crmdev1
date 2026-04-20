@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/src/types/database.types";
 import { gamificationService, GAMIFICATION_CONFIG } from "@/src/lib/gamification";
+import { checkRateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 
 
 
@@ -27,7 +28,33 @@ const DB_STATUS_BY_LIFECYCLE: Record<LifecycleStatus, DbStatus> = {
   closed: "resolved",
 };
 const DUPLICATE_LOOKBACK_HOURS = 24;
-const DUPLICATE_RADIUS_METERS = 50;
+const DUPLICATE_RADIUS_METERS = 20; // Synced with FastAPI/WhatsApp shared.py (was 50)
+
+// ── Idempotency cache (prevents duplicate inserts on retries) ──
+// Maps idempotency key → { response, expiresAt }
+const idempotencyCache = new Map<string, { response: unknown; expiresAt: number }>();
+const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function getIdempotentResult(key: string): unknown | null {
+  const entry = idempotencyCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    idempotencyCache.delete(key);
+    return null;
+  }
+  return entry.response;
+}
+
+function setIdempotentResult(key: string, response: unknown): void {
+  // Evict expired entries periodically
+  if (idempotencyCache.size > 1000) {
+    const now = Date.now();
+    for (const [k, v] of idempotencyCache) {
+      if (now > v.expiresAt) idempotencyCache.delete(k);
+    }
+  }
+  idempotencyCache.set(key, { response, expiresAt: Date.now() + IDEMPOTENCY_TTL_MS });
+}
 const issueTypeAuthorityKeywords: Array<{ keywords: string[]; authority: string }> = [
   { keywords: ["street light", "light", "electricity", "power", "wire", "transformer"], authority: "DISCOM" },
   { keywords: ["garbage", "waste", "sanitation", "sweeping", "toilet", "drain", "sewage"], authority: "MCD" },
@@ -413,10 +440,29 @@ async function findRecentDuplicate(input: {
  * Creates a new complaint in Supabase.
  */
 export async function POST(req: NextRequest) {
+  // ── Idempotency: return cached result for duplicate request keys ──
+  const idempotencyKey = req.headers.get("x-idempotency-key")?.trim() || "";
+  if (idempotencyKey) {
+    const cached = getIdempotentResult(idempotencyKey);
+    if (cached) {
+      return NextResponse.json(cached, { status: 201 });
+    }
+  }
+
   const body = (await req.json().catch(() => null)) as ComplaintPayload | null;
 
   if (!body) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  // ── Rate limiting: 5 complaint submissions per minute per IP ──
+  const rlKey = rateLimitKey(req, "complaints");
+  const rl = checkRateLimit(rlKey, RATE_LIMITS.complaints);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many complaint submissions. Please wait before trying again." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
   }
 
   const authorization = req.headers.get("authorization") ?? "";
@@ -568,7 +614,14 @@ export async function POST(req: NextRequest) {
     console.error("[API/Complaints] Failed to award points for ticket creation:", err);
   }
 
-  return NextResponse.json({ success: true, complaint: data }, { status: 201 });
+  const responseBody = { success: true, complaint: data };
+
+  // Cache successful result for idempotency
+  if (idempotencyKey) {
+    setIdempotentResult(idempotencyKey, responseBody);
+  }
+
+  return NextResponse.json(responseBody, { status: 201 });
 
 }
 

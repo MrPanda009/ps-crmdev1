@@ -124,6 +124,10 @@ async def receive_message(request: Request):
                     await handle_text(from_, "confirm")
                 elif button_id == "cancel_ticket":
                     await handle_text(from_, "cancel")
+                elif button_id == "upvote_existing":
+                    await handle_text(from_, "upvote")
+                elif button_id == "force_submit":
+                    await handle_text(from_, "submit anyway")
             elif itype == "list_reply":
                 list_id = msg["interactive"]["list_reply"]["id"]
                 await handle_list_selection(from_, list_id)
@@ -187,6 +191,18 @@ async def handle_text(phone: str, text: str):
 
     # ── confirm ticket ─────────────────────────────────────────────────────────
     if text in ("confirm", "submit", "yes", "haan", "ok") and session.get("preview"):
+        await confirm_ticket(phone, session)
+        return
+
+    # ── upvote existing duplicate ──────────────────────────────────────────────
+    if text in ("upvote", "support", "same") and session.get("duplicate"):
+        await upvote_duplicate(phone, session)
+        return
+
+    # ── force submit despite duplicate ─────────────────────────────────────────
+    if text in ("force", "submit anyway", "yes again") and session.get("preview") and session.get("duplicate"):
+        session["force_submit"] = True
+        SESSIONS[phone] = session
         await confirm_ticket(phone, session)
         return
 
@@ -454,6 +470,38 @@ async def handle_location(phone: str, lat: float, lng: float):
 async def confirm_ticket(phone: str, session: dict):
     preview = session["preview"]
 
+    lat      = preview["latitude"]
+    lng      = preview["longitude"]
+    location = preview["location"]
+    child_id = preview["child_id"]
+    category = CHILD_CATEGORIES[child_id]
+    force_submit = session.get("force_submit", False)
+
+    # ── Duplicate pre-check: block and offer upvote (matches web behavior) ──
+    duplicate = _find_active_spatial_duplicate(category_id=child_id, latitude=lat, longitude=lng)
+    if duplicate and not force_submit:
+        # Store duplicate info in session for upvote/force flow
+        SESSIONS[phone] = {**session, "duplicate": duplicate, "state": "awaiting_duplicate_action"}
+        dup_ticket_id = duplicate.get("ticket_id", "Unknown")
+        dup_distance = duplicate.get("distance_m", "?")
+        dup_status = str(duplicate.get("status", "active")).replace("_", " ").title()
+        await send_button_message(phone,
+            (
+                f"⚠️ *Duplicate Detected*\n"
+                f"━━━━━━━━━━━━━━━━━\n"
+                f"A similar complaint already exists nearby:\n\n"
+                f"🎫 Ticket: *{dup_ticket_id}*\n"
+                f"📍 Distance: {dup_distance}m away\n"
+                f"🔄 Status: *{dup_status}*\n\n"
+                f"You can *upvote* the existing ticket to increase its priority, or *submit anyway* to create a new one."
+            ),
+            [
+                {"id": "upvote_existing", "title": "👍 Upvote"},
+                {"id": "force_submit", "title": "📝 Submit Anyway"},
+            ]
+        )
+        return
+
     await send_text(phone, "⏳ Submitting your complaint...")
 
     try:
@@ -463,12 +511,6 @@ async def confirm_ticket(phone: str, session: dict):
         photo_urls = [photo_url]
     except Exception:
         photo_urls = []
-
-    lat      = preview["latitude"]
-    lng      = preview["longitude"]
-    location = preview["location"]
-    child_id = preview["child_id"]
-    category = CHILD_CATEGORIES[child_id]
 
     # Use the authority already shown in the preview (computed during handle_location)
     routed_authority = preview["authority"]
@@ -500,7 +542,7 @@ async def confirm_ticket(phone: str, session: dict):
             "city":                location.get("city") or "Delhi",
             "upvote_count":        0,
             "is_spam":             False,
-            "possible_duplicate":  bool(_find_active_spatial_duplicate(category_id=child_id, latitude=lat, longitude=lng)),
+            "possible_duplicate":  bool(duplicate),
             "sla_breached":        False,
             "escalation_level":    0,
             "upvote_boost":        0,
@@ -545,6 +587,47 @@ async def confirm_ticket(phone: str, session: dict):
         status="submitted",
     ))
 
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 6b. UPVOTE EXISTING DUPLICATE (WhatsApp duplicate parity)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def upvote_duplicate(phone: str, session: dict):
+    """Upvote an existing duplicate complaint instead of creating a new one."""
+    duplicate = session.get("duplicate")
+    if not duplicate or not duplicate.get("id"):
+        await send_text(phone, "❌ No duplicate to upvote. Send *hi* to start again.")
+        SESSIONS.pop(phone, None)
+        return
+
+    complaint_id = duplicate["id"]
+    try:
+        # Increment upvote count
+        supabase.rpc("increment_upvote_count", {"complaint_id_input": complaint_id}).execute()
+        ticket_id = duplicate.get("ticket_id", complaint_id)
+        status = str(duplicate.get("status", "active")).replace("_", " ").title()
+
+        SESSIONS.pop(phone, None)  # clear session
+        await send_text(phone,
+            f"✅ *Upvoted!*\n\n"
+            f"🎫 Ticket: *{ticket_id}*\n"
+            f"🔄 Status: *{status}*\n\n"
+            f"Your support has been recorded. Higher upvotes = faster resolution.\n"
+            f"Thank you for helping improve your city! 🙏"
+        )
+    except Exception as e:
+        print(f"[WhatsApp upvote error] {e}")
+        # Fallback: try direct update if RPC not available
+        try:
+            current = supabase.table("complaints").select("upvote_count").eq("id", complaint_id).single().execute()
+            current_count = (current.data or {}).get("upvote_count", 0)
+            supabase.table("complaints").update({"upvote_count": current_count + 1}).eq("id", complaint_id).execute()
+            SESSIONS.pop(phone, None)
+            await send_text(phone, f"✅ Upvoted ticket *{duplicate.get('ticket_id', complaint_id)}*. Thank you! 🙏")
+        except Exception as e2:
+            print(f"[WhatsApp upvote fallback error] {e2}")
+            await send_text(phone, "❌ Failed to upvote. Please try again later.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
