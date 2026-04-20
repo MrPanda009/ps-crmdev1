@@ -73,15 +73,25 @@ function sanitizeExtracted(value: unknown): ExtractedComplaint | null {
   const issueType = typeof v.issue_type === "string" ? v.issue_type.trim() : "";
   const severity = typeof v.severity === "string" ? v.severity.trim() : "";
   const description = typeof v.description === "string" ? v.description.trim() : "";
+  const childId = typeof v.child_id === "number" ? Math.floor(v.child_id) : parseInt(String(v.child_id), 10);
 
-  if (!title || !issueType || !severity || !description) return null;
+  if (!title || !issueType || !severity || !description || isNaN(childId)) return null;
+
+  let candidates: number[] | undefined;
+  if (Array.isArray(v.candidates)) {
+    candidates = v.candidates
+      .map((c) => (typeof c === "number" ? Math.floor(c) : parseInt(String(c), 10)))
+      .filter((c) => !isNaN(c));
+  }
 
   return {
     title,
+    child_id: childId,
     issue_type: issueType,
     severity,
     description,
     confidence: toConfidence(v.confidence),
+    candidates: candidates?.length ? candidates : undefined,
   };
 }
 

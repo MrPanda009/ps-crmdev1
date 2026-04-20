@@ -5,6 +5,7 @@ import { Mic, MicOff, Send, Plus, MapPin, CheckCircle2, ChevronDown, ChevronUp, 
 import gsap from "gsap";
 import { sendToGemini } from "@/lib/gemini";
 import type { ChatMessage, ExtractedComplaint, GeminiResponse } from "@/lib/gemini";
+import { CHILD_CATEGORIES } from "@/lib/categories";
 import { supabase } from "@/src/lib/supabase";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { saveSharedState, getSharedState, clearSharedState } from "../lib/db";
@@ -45,6 +46,8 @@ interface DisplayMessage {
   imagePreview?: ImageTicketPreview | null;
   /** Reverse-geocoded details for text-based complaints */
   geoDetails?: GeoDetails | null;
+  /** Disambiguation candidates for low-confidence categorization */
+  candidates?: number[];
 }
 
 interface GeoDetails {
@@ -106,24 +109,9 @@ interface DeviceLocation {
   timestamp: string;
 }
 
-const ISSUE_TYPE_CATEGORY_MAP: Array<{ keywords: string[]; categoryId: number }> = [
-  { keywords: ["metro", "station", "escalator", "lift"], categoryId: 1 },
-  { keywords: ["highway", "expressway", "toll", "bridge", "road", "pothole", "flyover"], categoryId: 11 },
-  { keywords: ["garbage", "waste", "trash", "sweeping", "toilet"], categoryId: 16 },
-  { keywords: ["drain", "sewage", "sewer", "water", "leak", "pipeline"], categoryId: 27 },
-  { keywords: ["street light", "light", "electricity", "power", "wire", "transformer"], categoryId: 25 },
-  { keywords: ["traffic", "signal", "parking", "accident"], categoryId: 36 },
-  { keywords: ["crime", "safety", "theft", "harassment"], categoryId: 35 },
-  { keywords: ["air", "noise", "pollution", "burning"], categoryId: 40 },
-];
-
-function categoryFromIssueType(issueType: string): number {
-  const normalized = issueType.toLowerCase();
-  const match = ISSUE_TYPE_CATEGORY_MAP.find(({ keywords }) =>
-    keywords.some((keyword) => normalized.includes(keyword)),
-  );
-  return match?.categoryId ?? 15;
-}
+/* ------------------------------------------------------------------ */
+/*  Helper Functions                                                  */
+/* ------------------------------------------------------------------ */
 
 function severityToLevel(severity: string): "L1" | "L2" | "L3" | "L4" {
   const normalized = severity.trim().toLowerCase();
@@ -570,6 +558,8 @@ export default function ChatPanel({ onClose: _onClose }: { onClose?: () => void 
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [isInitialView, setIsInitialView] = useState(true);
   const [skipAnimation, setSkipAnimation] = useState(false);
+  const [isDisambiguating, setIsDisambiguating] = useState(false);
+  const [categoryCandidates, setCategoryCandidates] = useState<number[]>([]);
   const hasAnimatedRef = useRef(false);
 
   // Instantly snap to bottom before browser paints if skipping animation
@@ -887,10 +877,18 @@ export default function ChatPanel({ onClose: _onClose }: { onClose?: () => void 
 
   /* ----- message helpers ----- */
   const addBotMessage = useCallback(
-    (text: string, extra?: { extracted?: ExtractedComplaint | null; imagePreview?: ImageTicketPreview | null; geoDetails?: GeoDetails | null }) => {
+    (text: string, extra?: { extracted?: ExtractedComplaint | null; imagePreview?: ImageTicketPreview | null; geoDetails?: GeoDetails | null; candidates?: number[] }) => {
       setMessages((prev) => [
         ...prev,
-        { id: uid(), role: "bot", text, extracted: extra?.extracted, imagePreview: extra?.imagePreview, geoDetails: extra?.geoDetails },
+        { 
+          id: uid(), 
+          role: "bot", 
+          text, 
+          extracted: extra?.extracted, 
+          imagePreview: extra?.imagePreview, 
+          geoDetails: extra?.geoDetails,
+          candidates: extra?.candidates 
+        },
       ]);
       setTimeout(scrollToBottom, 80);
     },
@@ -1066,15 +1064,24 @@ export default function ChatPanel({ onClose: _onClose }: { onClose?: () => void 
       historyRef.current.push({ role: "model", text: res.reply });
 
       if (res.extracted) {
-          if (res.extracted.confidence < 0.6) {
-          setPendingComplaint(null);
-          setPendingImagePreview(null);
-          setPendingImageDataUrl(null);
-          setPendingLocation(null);
-          setLocationConfirmed(false);
+        const confidenceThreshold = 0.7;
+        const isLowConfidence = res.extracted.confidence < confidenceThreshold;
+        const hasCandidates = res.extracted.candidates && res.extracted.candidates.length > 0;
+
+        if (isLowConfidence || hasCandidates) {
+          setIsDisambiguating(true);
+          const candidates = res.extracted.candidates || [];
+          // Ensure main detected id is also a candidate if confidence is on the edge
+          const finalCandidates = Array.from(new Set([res.extracted.child_id, ...candidates])).slice(0, 3);
+          setCategoryCandidates(finalCandidates);
+
+          setPendingComplaint({ ...res.extracted, child_id: 0 }); // reset child_id till user picks
           setDuplicateContext(null);
-          if (userIdRef.current) clearSharedState(`jansamadhan_pending_state_${userIdRef.current}`).catch(console.error);
-          addBotMessage(t(selectedLanguage, "low_confidence"));
+          
+          addBotMessage(res.reply, { 
+            extracted: res.extracted, 
+            candidates: finalCandidates 
+          });
           return;
         }
 
@@ -1218,7 +1225,7 @@ export default function ChatPanel({ onClose: _onClose }: { onClose?: () => void 
       }
 
       const submitLocation = pendingLocation;
-      const categoryId = categoryFromIssueType(pendingComplaint.issue_type);
+      const categoryId = pendingComplaint.child_id;
       const severityLevel = severityToLevel(pendingComplaint.severity);
 
       const res = await fetch("/api/complaints", {
@@ -1618,6 +1625,46 @@ export default function ChatPanel({ onClose: _onClose }: { onClose?: () => void 
                   </tbody>
                 </table>
                 <p className="mt-2 text-center font-semibold text-amber-600 dark:text-amber-400">{t(selectedLanguage, "type_yes")}</p>
+              </div>
+            )}
+            {msg.candidates && msg.candidates.length > 0 && isDisambiguating && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 italic">
+                  I'm a bit unsure about the category. Please select the most accurate one:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {msg.candidates.map((catId) => {
+                    const cat = CHILD_CATEGORIES[catId];
+                    if (!cat) return null;
+                    return (
+                      <button
+                        key={catId}
+                        onClick={() => {
+                          if (pendingComplaint) {
+                            const updated = { ...pendingComplaint, child_id: catId, issue_type: cat.name };
+                            setPendingComplaint(updated);
+                            setIsDisambiguating(false);
+                            setCategoryCandidates([]);
+                            addBotMessage(`Perfect. I've updated the category to **${cat.name}**. Please confirm the details above and type YES to submit.`);
+                          }
+                        }}
+                        className="rounded-full border border-[#b4725a] bg-white px-3 py-1 text-xs font-medium text-[#b4725a] transition-all hover:bg-[#b4725a] hover:text-white dark:border-[#C9A84C] dark:bg-[#1e1e1e] dark:text-[#C9A84C] dark:hover:bg-[#C9A84C] dark:hover:text-black"
+                      >
+                        {cat.name}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => {
+                      setIsDisambiguating(false);
+                      setCategoryCandidates([]);
+                      addBotMessage("Understood. Please describe the issue again with more clarity so I can help you better.");
+                    }}
+                    className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-500 transition-all hover:bg-gray-100 dark:border-[#2a2a2a] dark:bg-[#1e1e1e] dark:text-gray-400 dark:hover:bg-[#2a2a2a]"
+                  >
+                    None of these
+                  </button>
+                </div>
               </div>
             )}
             {msg.imagePreview && (

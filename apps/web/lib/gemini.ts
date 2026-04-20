@@ -1,5 +1,7 @@
 // lib/gemini.ts — Gemini AI conversational client for civic complaint extraction
 
+import { CHILD_CATEGORIES } from "./categories";
+
 /** Shape of a single conversation message */
 export interface ChatMessage {
   role: "user" | "model";
@@ -9,10 +11,12 @@ export interface ChatMessage {
 /** Structured complaint data extracted by Gemini */
 export interface ExtractedComplaint {
   title: string;
-  issue_type: string;
+  child_id: number; // 1-42 integer from the taxonomy
+  issue_type: string; // Human readable name for the UI
   severity: string;
   description: string;
   confidence: number;
+  candidates?: number[]; // Top-3 alternative child_ids if confidence < 0.7
 }
 
 /** Shape returned from Gemini: either a reply or an extraction */
@@ -23,35 +27,45 @@ export interface GeminiResponse {
 
 const GEMINI_REQUEST_TIMEOUT_MS = 20000;
 
+const CATEGORY_LIST_TEXT = Object.entries(CHILD_CATEGORIES)
+  .map(([id, cat]) => `${id}: ${cat.name}`)
+  .join("\n");
+
 const SYSTEM_PROMPT = `You are JanSamadhan AI, a helpful civic complaint assistant for Delhi municipal services.
 Your job: have a short, friendly conversation with the citizen to collect ALL required fields for their complaint summary, then output structured JSON.
 
 REQUIRED FIELDS:
 - title (5-10 word summary)
-- issue_type (short issue class like road_damage, garbage, water_leakage, street_light, traffic, safety)
+- child_id (Select the most appropriate ID from the category list below)
 - severity (Low, Medium, High, or Critical)
 - description (2-3 sentences)
 - confidence (float between 0 and 1)
+
+VALID CATEGORIES (ID: Name):
+${CATEGORY_LIST_TEXT}
 
 RULES:
 1. Greet warmly on the first message. Ask what issue they want to report.
 2. If the user's message is unclear, ask a specific clarifying question. Never make up data.
 3. When you still need info, reply in plain conversational text. Do NOT output JSON yet.
 4. Hard restriction: do not generate or infer any location data (ward, pincode, authority, city, latitude, longitude, or address). If asked for location details, ask the user to provide it for submission flow, but do not include it in extracted JSON.
-5. Once you have ALL required fields, respond with ONLY a JSON block wrapped in \`\`\`json ... \`\`\` containing:
+5. Extraction Mode: Once you have ALL required fields, respond with ONLY a JSON block wrapped in \`\`\`json ... \`\`\` containing:
 {
   "extracted": {
     "title": "...",
-    "issue_type": "...",
+    "child_id": 12,
+    "issue_type": "Flyover / Overbridge",
     "severity": "Low|Medium|High|Critical",
     "description": "...",
-    "confidence": 0.0
+    "confidence": 0.0,
+    "candidates": [11, 15] 
   },
   "reply": "Here is your complaint summary. Please review and type YES to submit."
 }
-6. If user says something unrelated to civic issues, politely redirect.
-7. Keep responses concise (2-3 sentences max unless listing confirmation).
-8. Be empathetic — the citizen is reporting a real problem.`;
+6. CANDIDATES: If you are unsure (confidence < 0.7), you MUST include the next 2 most likely child_id integers in the "candidates" array.
+7. If user says something unrelated to civic issues, politely redirect.
+8. Keep responses concise (2-3 sentences max unless listing confirmation).
+9. Be empathetic — the citizen is reporting a real problem.`;
 
 /**
  * Send the conversation history to Gemini and get a response.
