@@ -506,7 +506,7 @@ async def handle_image(phone: str, image_id: str, caption: str = ""):
     confidence = result.get("confidence", 0.8)
     confidence_warning = ""
     if confidence < 0.6:
-        confidence_warning = "\n⚠️ _We're not very confident about this classification. Consider taking a clearer photo._\n"
+        confidence_warning = "\n⚠️ _I'm having a bit of trouble identifying the problem from this photo. Could you please describe what's wrong? (Include details like what happened and how urgent it is)_\n"
 
     # 4. Store image + result in session; ask for location
     session = await get_session(phone)
