@@ -5,12 +5,13 @@ import { SYSTEM_PROMPT } from "@/lib/gemini";
 import type { ChatMessage, GeminiResponse, ExtractedComplaint } from "@/lib/gemini";
 import { checkRateLimit, rateLimitKey, RATE_LIMITS } from "@/lib/rate-limit";
 
-const GEMINI_API_KEY =
+const GEMINI_API_KEY = (
   process.env.GEMINI_API_KEY ??
   process.env.GOOGLE_API_KEY ??
-  process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-const GEMINI_PRIMARY_MODEL = process.env.GEMINI_PRIMARY_MODEL ?? "gemini-2.5-flash";
-const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL ?? "gemini-2.0-flash";
+  process.env.NEXT_PUBLIC_GEMINI_API_KEY
+)?.trim();
+const GEMINI_PRIMARY_MODEL = (process.env.GEMINI_PRIMARY_MODEL ?? "gemini-3.5-flash").trim();
+const GEMINI_FALLBACK_MODEL = (process.env.GEMINI_FALLBACK_MODEL ?? "gemini-2.5-flash").trim();
 const ALLOWED_ORIGINS = new Set([
   "http://localhost:3000",
   "http://localhost:3001",

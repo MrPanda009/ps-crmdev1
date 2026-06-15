@@ -42,15 +42,25 @@ load_dotenv(ROOT_DIR / "apps" / "web" / ".env.local", override=False)
 
 # Core Keys
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    GEMINI_API_KEY = GEMINI_API_KEY.strip()
 SUPABASE_URL = (os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL", "")).strip().rstrip("/")
 SUPABASE_SERVICE_KEY = (os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "")).strip()
 
 # Other Config
 MAPPLS_API_KEY = os.getenv("MAPPLS_API_KEY")
+if MAPPLS_API_KEY:
+    MAPPLS_API_KEY = MAPPLS_API_KEY.strip()
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+if RESEND_API_KEY:
+    RESEND_API_KEY = RESEND_API_KEY.strip()
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "Jansamadhan@mail.perkkk.dev").strip() or "Jansamadhan@mail.perkkk.dev"
 AI_SERVICE_URL = os.getenv("AI_SERVICE_URL")
+if AI_SERVICE_URL:
+    AI_SERVICE_URL = AI_SERVICE_URL.strip()
 REDIS_URL = os.getenv("REDIS_URL")
+if REDIS_URL:
+    REDIS_URL = REDIS_URL.strip()
 FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "https://jansamadhan.perkkk.dev").strip().rstrip("/")
 
 # Startup Validation
@@ -78,8 +88,12 @@ if REDIS_URL:
     except Exception as e:
         print(f"⚠️  WARNING: Redis connection failed: {e}")
 
-GEMINI_PRIMARY_MODEL = os.getenv("GEMINI_PRIMARY_MODEL", "gemini-2.5-flash")
-GEMINI_FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.0-flash")
+GEMINI_PRIMARY_MODEL = os.getenv("GEMINI_PRIMARY_MODEL", "gemini-3.5-flash")
+if GEMINI_PRIMARY_MODEL:
+    GEMINI_PRIMARY_MODEL = GEMINI_PRIMARY_MODEL.strip()
+GEMINI_FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash")
+if GEMINI_FALLBACK_MODEL:
+    GEMINI_FALLBACK_MODEL = GEMINI_FALLBACK_MODEL.strip()
 
 
 _NOTIFICATION_EVENT_LABELS = {
