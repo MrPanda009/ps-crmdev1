@@ -539,24 +539,8 @@ async def handle_image(phone: str, image_id: str, caption: str = ""):
         print(f"[WhatsApp] Resuming from awaiting_photo state. Using description: {caption[:50]}...")
 
     # 1. Check if we already have a valid description (min 20 chars)
-    is_valid, text_err = validate_text_quality(caption)
-    
-    if not is_valid:
-        # Prompt for description and store image_id for later
-        log_event("whatsapp_reprompt", level="INFO", reason_code="TEXT_LOW_QUALITY", payload={"phone": phone})
-        session.update({
-            "pending_image_id": image_id,
-            "state": "awaiting_description",
-            "fallback_count": 0
-        })
-        await save_session(phone, session)
-        
-        await send_text(phone, 
-            "📸 *Photo received!*\n\n"
-            "To help me identify the problem accurately, please provide a short description of the issue (min 20 characters).\n\n"
-            "_Example: 'There is a large pothole in the middle of the road near the market.'_"
-        )
-        return
+    # (Bypassed for WhatsApp to allow seamless image-first flow without forcing text descriptions)
+
 
     await send_text(phone, "⏳ Analyzing the issue... Please wait.")
 
@@ -687,7 +671,6 @@ async def handle_location(phone: str, lat: float, lng: float):
         "latitude":    lat,
         "longitude":   lng,
         "location":    location,
-        "image_bytes": image_bytes,
     }
 
     session.update({"preview": preview, "state": "awaiting_confirm"})
@@ -758,8 +741,9 @@ async def confirm_ticket(phone: str, session: dict):
     try:
         # Upload image to Supabase Storage
         filename  = f"{uuid.uuid4()}.jpg"
-        photo_url = upload_image_to_supabase(preview["image_bytes"], filename)
-        photo_urls = [photo_url]
+        image_bytes = session.get("image_bytes")
+        photo_url = upload_image_to_supabase(image_bytes, filename) if image_bytes else None
+        photo_urls = [photo_url] if photo_url else []
     except Exception:
         photo_urls = []
 

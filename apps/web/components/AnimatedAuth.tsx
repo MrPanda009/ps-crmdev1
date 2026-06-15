@@ -7,7 +7,7 @@ import { User, Mail } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/src/lib/supabase';
 import { useTheme } from './ThemeProvider';
-import ReCAPTCHA from 'react-google-recaptcha';
+import { Turnstile, type TurnstileRef } from './Turnstile';
 
 // Register the hook to ensure proper cleanup in React strict mode
 gsap.registerPlugin(useGSAP);
@@ -171,9 +171,9 @@ export default function AnimatedAuth({
   const overlayRightTextRef = useRef<HTMLDivElement>(null);
   const loginFormRef = useRef<HTMLDivElement>(null);
   const signupFormRef = useRef<HTMLDivElement>(null);
-  const recaptchaRef = useRef<ReCAPTCHA>(null);
-  const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim() ?? '';
-  const isRecaptchaConfigured = recaptchaSiteKey.length > 0;
+  const turnstileRef = useRef<TurnstileRef>(null);
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? '';
+  const isTurnstileConfigured = turnstileSiteKey.length > 0;
 
   const isDark = theme === 'dark';
   const activeThemeColor = isDark ? themeColorDark : themeColor;
@@ -238,22 +238,22 @@ export default function AnimatedAuth({
     setError('');
     setMessage('');
 
-    if (!isRecaptchaConfigured) {
-      setError('reCAPTCHA is not configured. Add NEXT_PUBLIC_RECAPTCHA_SITE_KEY in apps/web/.env.local and restart the dev server.');
+    if (!isTurnstileConfigured) {
+      setError('Turnstile is not configured. Add NEXT_PUBLIC_TURNSTILE_SITE_KEY in apps/web/.env.local and restart the dev server.');
       return;
     }
 
-    let token = recaptchaRef.current?.getValue();
+    let token = turnstileRef.current?.getResponse();
     if (!token) {
       if (process.env.NODE_ENV === 'development') {
         token = 'dev_mock_token';
       } else {
-        setError('Please complete the reCAPTCHA.');
+        setError('Please complete the Turnstile verification.');
         return;
       }
     }
 
-    const verifyRes = await fetch('/api/verify-recaptcha', {
+    const verifyRes = await fetch('/api/verify-turnstile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
@@ -263,9 +263,9 @@ export default function AnimatedAuth({
       const message =
         typeof verifyData.message === 'string' && verifyData.message.trim().length > 0
           ? verifyData.message
-          : 'reCAPTCHA verification failed. Please try again.';
+          : 'Turnstile verification failed. Please try again.';
       setError(message);
-      recaptchaRef.current?.reset();
+      turnstileRef.current?.reset();
       return;
     }
 
@@ -279,7 +279,7 @@ export default function AnimatedAuth({
     if (loginError) {
       setError(loginError.message);
       setLoading(false);
-      recaptchaRef.current?.reset();
+      turnstileRef.current?.reset();
       return;
     }
 
@@ -287,7 +287,7 @@ export default function AnimatedAuth({
     if (!userId) {
       setError('Login failed. Please try again.');
       setLoading(false);
-      recaptchaRef.current?.reset();
+      turnstileRef.current?.reset();
       return;
     }
 
@@ -301,7 +301,7 @@ export default function AnimatedAuth({
       setError('Could not verify role. Please try again.');
       await supabase.auth.signOut();
       setLoading(false);
-      recaptchaRef.current?.reset();
+      turnstileRef.current?.reset();
       return;
     }
 
@@ -309,7 +309,7 @@ export default function AnimatedAuth({
       setError('Invalid user role. Please contact support.');
       await supabase.auth.signOut();
       setLoading(false);
-      recaptchaRef.current?.reset();
+      turnstileRef.current?.reset();
       return;
     }
 
@@ -487,28 +487,31 @@ export default function AnimatedAuth({
               </button>
             </div>
           </div>
-          {isRecaptchaConfigured ? (
-            <ReCAPTCHA
-              ref={recaptchaRef}
-              sitekey={recaptchaSiteKey}
+          {isTurnstileConfigured ? (
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={turnstileSiteKey}
               theme={isDark ? 'dark' : 'light'}
               size="normal"
               className="mt-4"
-              onExpired={() => {
-                setError('reCAPTCHA expired. Please complete it again.');
+              onExpire={() => {
+                setError('Turnstile session expired. Please verify again.');
               }}
-              onErrored={() => {
+              onError={() => {
                 console.warn(
-                  'reCAPTCHA widget error. The site key may be restricted by domain (e.g., localhost is not whitelisted) or key type.'
+                  'Turnstile widget error. The site key may be restricted by domain (e.g., localhost is not whitelisted).'
                 );
                 if (process.env.NODE_ENV !== 'development') {
-                  setError('reCAPTCHA failed to load. Please try again later.');
+                  setError('Turnstile failed to load. Please try again later.');
                 }
+              }}
+              onVerify={() => {
+                setError(null);
               }}
             />
           ) : (
             <p className="mt-4 text-xs text-red-300">
-              reCAPTCHA is unavailable. Add NEXT_PUBLIC_RECAPTCHA_SITE_KEY in apps/web/.env.local and restart.
+              Turnstile is unavailable. Add NEXT_PUBLIC_TURNSTILE_SITE_KEY in apps/web/.env.local and restart.
             </p>
           )}
           <button

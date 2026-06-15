@@ -87,7 +87,7 @@ India has over **4,000 urban local bodies**, 28 state governments, and hundreds 
 | 🔍 **PostGIS Duplicate Detection** | 20-metre radius check prevents spam *before* submission. Citizen is shown existing complaints and can upvote instead |
 | 🏢 **Department-Scoped Authority Views** | Each authority only sees complaints from **their department**. Zero cross-department leakage — the #1 problem with CPGRAMS in India |
 | 🔒 **ENUM State Machine in DB** | `complaint_status`, `severity_level`, `worker_availability` are PostgreSQL ENUMs. Invalid transitions are impossible even if someone bypasses the app |
-| 🤖 **reCAPTCHA Protection** | Bot-spam prevention on complaint submission and login to prevent fake complaint flooding |
+| 🤖 **Cloudflare Turnstile** | Bot-spam prevention on complaint submission and login to prevent fake complaint flooding |
 | 📋 **Immutable Audit Trail** | Every status change is logged to `ticket_history`. Citizens see public trail; authorities see internal notes. Tamper-proof |
 
 ---
@@ -173,7 +173,7 @@ Full platform control. Admins can view all complaints across all departments, ma
 - **Supabase** project (free tier works)
 - **Google Gemini API key** (paid plan required — see note below)
 - **Mappls Maps API key**
-- **reCAPTCHA site key** (Google)
+- **Turnstile site key** (Cloudflare)
 
 > ⚠️ **Gemini API Key must use a billed plan.** JanSamadhan does not assume Gemini free-tier availability. Use budget alerts and per-key quota caps to control spend during demos and production usage. See [API Reference](#-api-reference) for deployment guidance.
 
@@ -205,8 +205,8 @@ cp .env.example .env.local
 | `GEMINI_FALLBACK_MODEL` | Optional fallback Gemini model on quota/model errors |
 | `MAPPLS_API_KEY` | Mappls Maps API for India geocoding |
 | `NEXT_PUBLIC_API_URL` | FastAPI backend URL (Railway or local) |
-| `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | Google reCAPTCHA v2 site key |
-| `RECAPTCHA_SECRET_KEY` | Server-side secret for captcha verification API |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key |
+| `TURNSTILE_SECRET_KEY` | Server-side secret for Turnstile verification API |
 | `SARVAM_API_KEY` | Server-side API key for speech-to-text proxy (`/api/stt`) |
 | `RESEND_API_KEY` | Resend key for transactional notifications |
 | `RESEND_FROM_EMAIL` | Sender identity for complaint emails |
@@ -338,7 +338,7 @@ flowchart TD
     G1 -->|No| H
     G2 -->|Upvote| G3[✅ Upvote registered\nSeverity may escalate]
     G2 -->|Submit anyway| H
-    H[🤖 reCAPTCHA verification]
+    H[🤖 Turnstile verification]
     H --> I[🎫 Ticket Generated\nDL-YYYY-NNNNN]
     I --> J[📧 Confirmation + Ticket ID shown]
     J --> K[📊 Live tracking on dashboard]
@@ -711,7 +711,7 @@ graph TD
         GMN[🤖 Google Gemini\nPaid API]
         MAPS[🗺️ Mappls Maps\nLeaflet.js]
         GAUTH[🔐 Google OAuth]
-        RCAP[🛡️ reCAPTCHA v2]
+        RCAP[🛡️ Cloudflare Turnstile]
     end
 
     CIT -->|Complaint submission| API
@@ -746,7 +746,7 @@ graph TD
 | **Maps** | Mappls API + Leaflet.js | India-specific geocoding, interactive map |
 | **Auth** | Supabase Auth + Google OAuth | Role-based access, magic links |
 | **Location Standard** | DIGIPIN (Dept of Posts, GoI) | 10-char 4m×4m location encoding |
-| **Bot Protection** | Google reCAPTCHA v2 | Prevent fake complaint flooding |
+| **Bot Protection** | Cloudflare Turnstile | Prevent fake complaint flooding |
 | **Storage** | Supabase Storage | Complaint photos and resolution proof |
 | **Hosting** | Vercel (frontend) + Railway (FastAPI) | Edge deployment |
 
@@ -779,7 +779,7 @@ graph TD
 | `/api/complaints` | `POST/PATCH/PUT` | Complaint create/upvote/status actions from web app |
 | `/api/chat` | `POST` | Server-side Gemini proxy with model fallback + CORS control |
 | `/api/stt` | `POST` | Speech-to-text proxy for voice complaint flow |
-| `/api/verify-recaptcha` | `POST` | Server-side captcha validation |
+| `/api/verify-turnstile` | `POST` | Server-side Turnstile validation |
 | `/api/citizen/wallet` | `GET/POST` | Wallet, rewards, and redemption operations |
 | `/api/citizen/leaderboard` | `GET` | Citizen leaderboard feed |
 | `/api/admin/authorities` | `GET/PATCH/POST` | Admin authority CRUD operations |
@@ -827,8 +827,8 @@ graph TD
 
 ## 🔐 Security Design
 
-### reCAPTCHA
-Google reCAPTCHA v2 is integrated on complaint submission to prevent automated bots from flooding the system with fake complaints. This is critical for a civic platform where complaint volume directly affects authority workload.
+### Cloudflare Turnstile
+Cloudflare Turnstile is integrated on complaint submission to prevent automated bots from flooding the system with fake complaints. This is critical for a civic platform where complaint volume directly affects authority workload.
 
 ### Row-Level Security (28 Policies)
 All 8 database tables have RLS enabled. Policies use `auth.uid()` and `auth.jwt()` — never recursive subqueries.

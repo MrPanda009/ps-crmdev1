@@ -197,7 +197,7 @@ const backendDeliverables: Deliverable[] = [
     id: "09",
     title: "Integrations",
     description:
-      "Gemini LLM, Mappls geocoding, Sarvam STT (10 languages), Meta WhatsApp Bot, Resend email, reCAPTCHA v2, Redis. All operational.",
+      "Gemini LLM, Mappls geocoding, Sarvam STT (10 languages), Meta WhatsApp Bot, Resend email, Cloudflare Turnstile, Redis. All operational.",
     badge: "Live",
   },
   {
@@ -215,7 +215,7 @@ const integrations: Integration[] = [
   { name: "Sarvam STT", purpose: "Voice input · 10 languages", status: "Live" },
   { name: "WhatsApp (Meta)", purpose: "Bot intake · Notifications", status: "Live" },
   { name: "Resend", purpose: "Transactional email", status: "Live" },
-  { name: "reCAPTCHA v2", purpose: "Spam prevention", status: "Live" },
+  { name: "Cloudflare Turnstile", purpose: "Spam prevention", status: "Live" },
   { name: "Redis (Upstash)", purpose: "Cache · Sessions", status: "Live" },
   { name: "Supabase", purpose: "DB · Auth · Storage", status: "Live" },
 ];
@@ -229,7 +229,7 @@ const specs: SpecItem[] = [
   {
     layer: "Backend API",
     tech: "FastAPI (Python 3.10+)",
-    note: "35+ REST endpoints on GCP Cloud Run. Auto-scaling, zero-downtime, 99.9% uptime SLA. JWT auth + reCAPTCHA on all public endpoints.",
+    note: "35+ REST endpoints on GCP Cloud Run. Auto-scaling, zero-downtime, 99.9% uptime SLA. JWT auth + Cloudflare Turnstile on all public endpoints.",
   },
   {
     layer: "AI Service",
@@ -253,7 +253,7 @@ const specs: SpecItem[] = [
   },
   {
     layer: "Security",
-    tech: "JWT · RLS · reCAPTCHA",
+    tech: "JWT · RLS · Turnstile",
     note: "Google OAuth + email/password with PostgreSQL RLS and controlled workflow transitions via ENUM state machine.",
   },
   {
