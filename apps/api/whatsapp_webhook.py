@@ -49,6 +49,195 @@ def get_graph_api_url():
     id_val = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "").strip()
     return f"https://graph.facebook.com/v22.0/{id_val}/messages"
 
+# ── Multilingual Support (Redis & Localization) ────────────────────────────────
+LANG_PREFIX = "whatsapp:language:"
+LANGUAGE_NAMES = {
+    "en": "English",
+    "hi": "Hindi",
+    "ta": "Tamil",
+    "te": "Telugu",
+    "kn": "Kannada",
+    "ml": "Malayalam",
+    "bn": "Bengali",
+    "mr": "Marathi",
+    "gu": "Gujarati",
+    "pa": "Punjabi",
+}
+
+async def get_user_language(phone: str) -> Optional[str]:
+    if not redis_client:
+        return None
+    try:
+        data = redis_client.get(f"{LANG_PREFIX}{phone}")
+        if data:
+            return data.decode("utf-8")
+    except Exception as e:
+        print(f"[Redis Get Lang Error] {e}")
+    return None
+
+async def save_user_language(phone: str, lang_code: str):
+    if not redis_client:
+        return
+    try:
+        redis_client.set(f"{LANG_PREFIX}{phone}", lang_code)
+    except Exception as e:
+        print(f"[Redis Save Lang Error] {e}")
+
+LOCALIZED_STRINGS = {
+    "en": {
+        "welcome": "🙏 *Namaste! Welcome to JanSamadhan.*\n\nI am your virtual civic assistant. How can I help you today?",
+        "menu_report": "📸 Report Issue",
+        "menu_report_desc": "Upload a photo to report a civic issue",
+        "menu_tickets": "📋 Recent Tickets",
+        "menu_tickets_desc": "Track the status of your complaints",
+        "menu_stats": "📊 My Statistics",
+        "menu_stats_desc": "View your total reported issues",
+        "select_menu": "Main Menu ☰",
+        "confirm_btn": "Confirm ✅",
+        "cancel_btn": "Cancel ❌",
+        "desc_too_short": "⚠️ *Description too short!*\n\nPlease describe the civic issue in more detail (minimum 10 characters).",
+        "photo_received": "📸 *Photo Received!*\n\nPlease send a brief description of the issue (minimum 10 characters).",
+        "analyzing": "⏳ Analyzing the issue... Please wait.",
+        "content_blocked": "⛔ *Content Blocked*\n\nThis image has been flagged by our content safety filter.\nPlease only submit photos of civic infrastructure issues.\n\nSend *hi* to start again.",
+        "not_civic_issue": "❌ *Not a Civic Issue*\n\n{reason}\n\nPlease send a clear photo of a civic problem (pothole, garbage, broken street light, etc.).\n\nSend *hi* to start again.",
+        "issue_detected": "✅ *Issue detected:* {issue_name}\n📋 *{title}*\n🔴 Severity: {severity}{warning}\n\n📍 Please tap *Send Location* below to complete your ticket.\n(Or reply *No* to cancel report)",
+        "photo_req": "📸 *Important:* I've summarized the issue, but I need a photo to proceed with the official report. Please send one now.",
+        "ticket_preview": "📋 *Ticket Preview*\n━━━━━━━━━━━━━━━━━\n🔖 Issue: {issue_name}\n📌 Title: {title}\n🏛 Authority: {authority}\n🔴 Severity: {severity}\n📍 Location: {address}\n━━━━━━━━━━━━━━━━━\n\nPlease tap a button below to proceed:",
+        "ticket_success": "✅ *Complaint Submitted Successfully!*\n\n🎫 Ticket ID: *{ticket_id}*\n🏛 Assigned to: {authority}\n📍 {address}\n\nYou can track your complaint at:\n🔗 {url}\n\nThank you for helping improve your city! 🙏",
+        "upvote_detected": "⚠️ *Duplicate Detected*\n━━━━━━━━━━━━━━━━━\nA similar complaint already exists nearby:\n\n🎫 Ticket: *{ticket_id}*\n📍 Distance: {distance}m away\n🔄 Status: *{status}*\n\nYou can *upvote* the existing ticket to increase its priority, or *submit anyway* to create a new one.",
+        "upvote_btn": "👍 Upvote",
+        "submit_anyway_btn": "📝 Submit Anyway",
+        "upvoted_success": "✅ *Upvoted!*\n\n🎫 Ticket: *{ticket_id}*\n🔄 Status: *{status}*\n\nYour support has been recorded. Higher upvotes = faster resolution.\nThank you for helping improve your city! 🙏",
+        "upvoted_fallback": "✅ Upvoted ticket *{ticket_id}*. Thank you! 🙏",
+        "upvote_fail": "❌ Failed to upvote. Please try again later.",
+        "submitting": "⏳ Submitting your complaint...",
+        "submit_fail": "❌ Failed to submit complaint: {e}",
+        "submission_failed": "❌ Submission failed. Please try again.",
+        "invalid_link_code": "❌ Invalid or expired linking code: *{code}*. Please generate a new one from the Web Portal.",
+        "link_success": "✅ *Success!* Your WhatsApp number has been successfully linked to your JanSamadhan account, *{name}*.\nAll reports submitted here will now sync to your dashboard.",
+        "link_error": "⚠️ Sorry, an error occurred while linking your account. Please try again later.",
+        "no_recent_tickets": "You don't have any recent tickets. Send a photo to report an issue!",
+        "recent_tickets_title": "📋 *Your Recent Tickets*\nHere are your last 5 reports. Tap one to view details:",
+        "view_tickets_btn": "View Tickets 🔽",
+        "recent_complaints_sect": "Recent Complaints",
+        "my_stats_title": "📊 *My Statistics*\n\nYou have reported a total of *{count}* civic issues.\nThank you for keeping your city clean and safe! 🙏",
+        "back_to_list_btn": "🔙 Back to List",
+        "ticket_details": "🎫 *Ticket: {ticket_id}*\n━━━━━━━━━━━━━━━━━\n📌 *Title:* {title}\n🏛 *Authority:* {authority}\n🚦 *Status:* {status}\n🔴 *Severity:* {severity}\n📅 *Reported:* {date}\n",
+        "resolution_note": "📝 *Resolution:* {note}\n",
+        "status_provide_id": "Please provide a ticket ID. Example: *status DL-2026-00042*",
+        "status_not_found": "❌ No ticket found with ID *{ticket_id}*.",
+        "status_title": "📋 *Ticket Status*\n━━━━━━━━━━━━━━\n🎫 ID: {ticket_id}\n📌 {title}\n🏛 {authority}\n🔄 Status: *{status}*\n📅 Filed: {date}",
+        "fallback_sorry": "I'm sorry, I'm only here to help with civic issues like potholes or garbage. Please send a *photo* to start a report.",
+        "cancelled": "❌ Cancelled. Send *hi* to start again."
+    },
+    "hi": {
+        "welcome": "🙏 *नमस्ते! जनसमाधान में आपका स्वागत है।*\n\nमैं आपका डिजिटल नागरिक सहायक हूँ। आज मैं आपकी क्या सहायता कर सकता हूँ?",
+        "menu_report": "📸 समस्या दर्ज करें",
+        "menu_report_desc": "नागरिक समस्या की रिपोर्ट करने के लिए एक फोटो अपलोड करें",
+        "menu_tickets": "📋 हालिया शिकायतें",
+        "menu_tickets_desc": "अपनी शिकायतों की स्थिति ट्रैक करें",
+        "menu_stats": "📊 मेरे आंकड़े",
+        "menu_stats_desc": "अपने कुल रिपोर्ट किए गए मुद्दों को देखें",
+        "select_menu": "मुख्य मेनू ☰",
+        "confirm_btn": "पुष्टि करें ✅",
+        "cancel_btn": "रद्द करें ❌",
+        "desc_too_short": "⚠️ *विवरण बहुत छोटा है!*\n\nकृपया समस्या का विस्तार से वर्णन करें (कम से कम 10 अक्षर)।",
+        "photo_received": "📸 *फोटो प्राप्त हुई!*\n\nकृपया समस्या का एक संक्षिप्त विवरण भेजें (कम से कम 10 अक्षर)।",
+        "analyzing": "⏳ समस्या का विश्लेषण किया जा रहा है... कृपया प्रतीक्षा करें।",
+        "content_blocked": "⛔ *सामग्री अवरुद्ध*\n\nइस छवि को हमारे सुरक्षा फ़िल्टर द्वारा चिह्नित किया गया है।\nकृपया केवल नागरिक बुनियादी ढांचे से संबंधित मुद्दों की तस्वीरें भेजें।\n\nफिर से शुरू करने के लिए *hi* भेजें।",
+        "not_civic_issue": "❌ *नागरिक समस्या नहीं है*\n\n{reason}\n\nकृपया किसी नागरिक समस्या (गड्ढा, कचरा, टूटी स्ट्रीट लाइट, आदि) की स्पष्ट तस्वीर भेजें।\n\nफिर से शुरू करने के लिए *hi* भेजें।",
+        "issue_detected": "✅ *समस्या की पहचान:* {issue_name}\n📋 *{title}*\n🔴 गंभीरता: {severity}{warning}\n\n📍 अपना टिकट पूरा करने के लिए नीचे *स्थान साझा करें* पर टैप करें।\n(या रद्द करने के लिए *No* भेजें)",
+        "photo_req": "📸 *महत्वपूर्ण:* मैंने समस्या का सारांश तैयार कर लिया है, लेकिन मुझे आधिकारिक रिपोर्ट दर्ज करने के लिए एक फोटो की आवश्यकता है। कृपया अब एक भेजें।",
+        "ticket_preview": "📋 *टिकट पूर्वावलोकन*\n━━━━━━━━━━━━━━━━━\n🔖 समस्या: {issue_name}\n📌 शीर्षक: {title}\n🏛 विभाग: {authority}\n🔴 गंभीरता: {severity}\n📍 स्थान: {address}\n━━━━━━━━━━━━━━━━━\n\nकृपया आगे बढ़ने के लिए नीचे दिए गए बटन पर टैप करें:",
+        "ticket_success": "✅ *शिकायत सफलतापूर्वक दर्ज की गई!*\n\n🎫 टिकट आईडी: *{ticket_id}*\n🏛 विभाग: {authority}\n📍 {address}\n\nआप अपनी शिकायत को यहाँ ट्रैक कर सकते हैं:\n🔗 {url}\n\nशहर को बेहतर बनाने में मदद करने के लिए धन्यवाद! 🙏",
+        "upvote_detected": "⚠️ *समान शिकायत मिली*\n━━━━━━━━━━━━━━━━━\nपास में ही एक समान शिकायत पहले से मौजूद है:\n\n🎫 टिकट: *{ticket_id}*\n📍 दूरी: {distance}m दूर\n🔄 स्थिति: *{status}*\n\nआप प्राथमिकता बढ़ाने के लिए मौजूदा टिकट का *समर्थन (Upvote)* कर सकते हैं, या नई शिकायत बनाने के लिए *वैसे भी सबमिट करें*।",
+        "upvote_btn": "👍 समर्थन करें",
+        "submit_anyway_btn": "📝 वैसे भी सबमिट करें",
+        "upvoted_success": "✅ *समर्थित!*\n\n🎫 टिकट: *{ticket_id}*\n🔄 स्थिति: *{status}*\n\nआपका समर्थन दर्ज कर लिया गया है। अधिक समर्थन = त्वरित समाधान।\nशहर को बेहतर बनाने में मदद करने के लिए धन्यवाद! 🙏",
+        "upvoted_fallback": "✅ टिकट *{ticket_id}* को समर्थन दिया गया। धन्यवाद! 🙏",
+        "upvote_fail": "❌ समर्थन करने में विफल। कृपया बाद में पुनः प्रयास करें।",
+        "submitting": "⏳ आपकी शिकायत सबमिट की जा रही है...",
+        "submit_fail": "❌ शिकायत सबमिट करने में विफल: {e}",
+        "submission_failed": "❌ सबमिशन विफल रहा। कृपया पुनः प्रयास करें।",
+        "invalid_link_code": "❌ अमान्य या समाप्त हो चुका लिंकिंग कोड: *{code}*। कृपया वेब पोर्टल से एक नया कोड उत्पन्न करें।",
+        "link_success": "✅ *सफलता!* आपका व्हाट्सएप नंबर आपके जनसमाधान खाते, *{name}* से सफलतापूर्वक लिंक हो गया है।\nयहाँ सबमिट की गई सभी शिकायतें अब आपके डैशबोर्ड पर दिखाई देंगी।",
+        "link_error": "⚠️ क्षमा करें, आपका खाता लिंक करने में त्रुटि हुई। कृपया बाद में पुनः प्रयास करें।",
+        "no_recent_tickets": "आपके पास कोई हालिया टिकट नहीं है। शिकायत दर्ज करने के लिए एक फोटो भेजें!",
+        "recent_tickets_title": "📋 *आपकी हालिया शिकायतें*\nये आपकी अंतिम 5 रिपोर्ट हैं। विवरण देखने के लिए एक पर टैप करें:",
+        "view_tickets_btn": "टिकट देखें 🔽",
+        "recent_complaints_sect": "हालिया शिकायतें",
+        "my_stats_title": "📊 *मेरे आंकड़े*\n\nआपने कुल *{count}* नागरिक समस्याओं की रिपोर्ट की है।\nअपने शहर को साफ और सुरक्षित रखने के लिए धन्यवाद! 🙏",
+        "back_to_list_btn": "🔙 सूची पर वापस जाएं",
+        "ticket_details": "🎫 *टिकट: {ticket_id}*\n━━━━━━━━━━━━━━━━━\n📌 *शीर्षक:* {title}\n🏛 *विभाग:* {authority}\n🚦 *स्थिति:* {status}\n🔴 *गंभीरता:* {severity}\n📅 *रिपोर्ट दिनांक:* {date}\n",
+        "resolution_note": "📝 *समाधान टिप्पणी:* {note}\n",
+        "status_provide_id": "कृपया टिकट आईडी प्रदान करें। उदाहरण: *status DL-2026-00042*",
+        "status_not_found": "❌ आईडी *{ticket_id}* के साथ कोई टिकट नहीं मिला।",
+        "status_title": "📋 *टिकट की स्थिति*\n━━━━━━━━━━━━━━\n🎫 आईडी: {ticket_id}\n📌 {title}\n🏛 {authority}\n🔄 स्थिति: *{status}*\n📅 दायर किया गया: {date}",
+        "fallback_sorry": "क्षमा करें, मैं केवल गड्ढों या कचरे जैसी नागरिक समस्याओं में मदद कर सकता हूँ। रिपोर्ट शुरू करने के लिए कृपया एक *फोटो* भेजें।",
+        "cancelled": "❌ रद्द कर दिया गया। फिर से शुरू करने के लिए *hi* भेजें।"
+    }
+}
+
+async def send_language_selection(phone: str):
+    """Sends a WhatsApp List message allowing the user to select their language."""
+    await send_list_message(
+        phone=phone,
+        body_text="👋 Welcome to JanSamadhan / जनसमाधान में आपका स्वागत है!\n\nPlease select your preferred language / कृपया अपनी भाषा चुनें:",
+        button_text="Select Language 🌐",
+        sections=[
+            {
+                "title": "Available Languages",
+                "rows": [
+                    {"id": "lang_en", "title": "English", "description": "Use English for chat"},
+                    {"id": "lang_hi", "title": "हिन्दी (Hindi)", "description": "चैट के लिए हिंदी का उपयोग करें"},
+                    {"id": "lang_ta", "title": "தமிழ் (Tamil)", "description": "தமிழில் தொடਰவும்"},
+                    {"id": "lang_te", "title": "తెలుగు (Telugu)", "description": "తెలుగులో చాట్ చేయండి"},
+                    {"id": "lang_kn", "title": "ಕನ್ನಡ (Kannada)", "description": "ಕನ್ನಡದಲ್ಲಿ ਚਾਟ ਕਰੋ"},
+                    {"id": "lang_ml", "title": "മലയാളം (Malayalam)", "description": "മലയാളം ഉപയോഗിക്കുക"},
+                    {"id": "lang_bn", "title": "বাংলা (Bengali)", "description": "বাংলায় চ্যাট করুন"},
+                    {"id": "lang_mr", "title": "मराठी (Marathi)", "description": "मराठी मध्ये सुरू ठेवा"},
+                    {"id": "lang_gu", "title": "ગુજરાતી (Gujarati)", "description": "ગુજરાતી માં ચેટ કરો"},
+                    {"id": "lang_pa", "title": "ਪੰਜਾਬੀ (Punjabi)", "description": "ਪੰਜਾਬੀ ਵਿੱਚ ਗੱਲਬਾਤ ਕਰੋ"},
+                ]
+            }
+        ]
+    )
+
+async def trigger_localized_menu(phone: str, lang_code: str):
+    strings = LOCALIZED_STRINGS.get(lang_code, LOCALIZED_STRINGS["en"])
+    await send_list_message(
+        phone=phone,
+        body_text=strings["welcome"],
+        button_text=strings["select_menu"],
+        sections=[
+            {
+                "title": strings["menu_report"],
+                "rows": [
+                    {
+                        "id": "menu_report_issue",
+                        "title": strings["menu_report"],
+                        "description": strings["menu_report_desc"]
+                    }
+                ]
+            },
+            {
+                "title": strings["menu_tickets"],
+                "rows": [
+                    {
+                        "id": "menu_recent_tickets",
+                        "title": strings["menu_tickets"],
+                        "description": strings["menu_tickets_desc"]
+                    },
+                    {
+                        "id": "menu_my_stats",
+                        "title": strings["menu_stats"],
+                        "description": strings["menu_stats_desc"]
+                    }
+                ]
+            }
+        ]
+    )
+
 # Redis Keys
 SESSION_PREFIX = "whatsapp:session:"
 SESSION_TTL = 3600  # 1 hour
@@ -181,44 +370,18 @@ async def handle_text(phone: str, raw_text: str):
     session = await get_session(phone)
     text = raw_text.lower()  # lowercase for command matching only
 
+    # Retrieve user language and localized strings
+    lang_code = await get_user_language(phone)
+    strings = LOCALIZED_STRINGS.get(lang_code, LOCALIZED_STRINGS["en"])
+
     # ── greeting ──────────────────────────────────────────────────────────────
-    if text in ("hi", "hello", "hey", "start", "namaste", "menu", "help"):
+    if text in ("hi", "hello", "hey", "start", "namaste", "menu", "help", "language", "lang"):
         await delete_session(phone)
-        await send_list_message(
-            phone=phone,
-            body_text=(
-                "🙏 *Namaste! Welcome to JanSamadhan.*\n\n"
-                "I am your virtual civic assistant. How can I help you today?"
-            ),
-            button_text="Main Menu ☰",
-            sections=[
-                {
-                    "title": "Report an Issue",
-                    "rows": [
-                        {
-                            "id": "menu_report_issue",
-                            "title": "📸 Report Issue",
-                            "description": "Upload a photo to report a civic issue"
-                        }
-                    ]
-                },
-                {
-                    "title": "My Complaints",
-                    "rows": [
-                        {
-                            "id": "menu_recent_tickets",
-                            "title": "📋 Recent Tickets",
-                            "description": "Track the status of your complaints"
-                        },
-                        {
-                            "id": "menu_my_stats",
-                            "title": "📊 My Statistics",
-                            "description": "View your total reported issues"
-                        }
-                    ]
-                }
-            ]
-        )
+        saved_lang = await get_user_language(phone)
+        if text in ("start", "language", "lang") or not saved_lang:
+            await send_language_selection(phone)
+        else:
+            await trigger_localized_menu(phone, saved_lang)
         return
 
     # ── awaiting description flow ─────────────────────────────────────────────
@@ -228,7 +391,7 @@ async def handle_text(phone: str, raw_text: str):
         return
 
     # ── confirm ticket ─────────────────────────────────────────────────────────
-    if text in ("confirm", "submit", "yes", "haan", "ok") and session.get("preview"):
+    if text in ("confirm", "submit", "yes", "haan", "ok", "पुष्टि", "हाँ", "हा", "सत्य") and session.get("preview"):
         await confirm_ticket(phone, session)
         return
 
@@ -248,7 +411,7 @@ async def handle_text(phone: str, raw_text: str):
         return
 
     # ── upvote existing duplicate ──────────────────────────────────────────────
-    if text in ("upvote", "support", "same") and session.get("duplicate"):
+    if text in ("upvote", "support", "same", "समर्थन") and session.get("duplicate"):
         await upvote_duplicate(phone, session)
         return
 
@@ -260,9 +423,9 @@ async def handle_text(phone: str, raw_text: str):
         return
 
     # ── cancel ────────────────────────────────────────────────────────────────
-    if text in ("cancel", "no", "nahi", "reset"):
+    if text in ("cancel", "no", "nahi", "reset", "रद्द", "नही", "नहीं", "ना"):
         await delete_session(phone)
-        await send_text(phone, "❌ Cancelled. Send *hi* to start again.")
+        await send_text(phone, strings["cancelled"])
         return
 
     # ── status check ──────────────────────────────────────────────────────────
@@ -295,42 +458,52 @@ async def handle_text(phone: str, raw_text: str):
     # In a full impl, we'd store last 5 messages in Redis.
     
     try:
+        from google.genai import types as genai_types
         from shared import CHILD_CATEGORIES
         child_list = "\n".join([f"{id}: {c['name']}" for id, c in CHILD_CATEGORIES.items()])
         
         # System prompt for WhatsApp (parities with Web lib/gemini.ts)
         prompt = f"""You are JanSamadhan AI, a helpful civic complaint assistant for Delhi municipal services.
-        Your job: Summarize the user's issue and output structured JSON.
-        
-        REQUIRED FIELDS:
-        - title (5-10 word summary)
-        - child_id (integer from the taxonomy below)
-        - severity (Low|Medium|High|Critical)
-        - description (2-3 sentences)
-        - confidence (float between 0 and 1)
-        
-        CATEGORIES:
-        {child_list}
-        
-        CIVIC FOCUS & SAFETY RULES:
-        1. Greet warmly on the first message.
-        2. If the user says something unrelated to civic problems (fun talk, jokes), politely steer them back.
-        3. PHOTO MANDATE: A photo is REQUIRED for final submission. If 'has_image' is false, you MUST include a reminder in your "reply".
-        
-        Extraction Mode (Only when you have all details):
-        Return ONLY JSON:
-        {{
-          "extracted": {{ "title": "...", "child_id": 12, "severity": "...", "description": "...", "confidence": 0.0 }},
-          "reply": "[Friendly summary]. [If no image: Please send a photo to proceed], then we can submit."
-        }}
-        """
+Your job: Summarize the user's issue and output structured JSON.
+
+REQUIRED FIELDS:
+- title (5-10 word summary)
+- child_id (integer from the taxonomy below)
+- severity (Low|Medium|High|Critical)
+- description (2-3 sentences)
+- confidence (float between 0 and 1)
+
+CATEGORIES:
+{child_list}
+
+CIVIC FOCUS & SAFETY RULES:
+1. Greet warmly on the first message.
+2. If the user says something unrelated to civic problems (fun talk, jokes), politely steer them back.
+3. PHOTO MANDATE: A photo is REQUIRED for final submission. If 'has_image' is false, you MUST include a reminder in your "reply".
+
+Extraction Mode (Only when you have all details):
+Return ONLY JSON:
+{{
+  "extracted": {{ "title": "...", "child_id": 12, "severity": "...", "description": "...", "confidence": 0.0 }},
+  "reply": "[Friendly summary]. [If no image: Please send a photo to proceed], then we can submit."
+}}
+"""
+        # Create config with system_instruction and temperature 0
+        config = genai_types.GenerateContentConfig(
+            system_instruction=prompt,
+            temperature=0.0
+        )
         
         # Call Gemini (text-only)
         for model_name in [GEMINI_PRIMARY_MODEL, GEMINI_FALLBACK_MODEL]:
             try:
                 response = gemini_client.models.generate_content(
                     model=model_name,
-                    contents=[f"System Context: {prompt}\nUser: {raw_text}\nHas Image in Session: {has_image}"]
+                    contents=[
+                        f"User Input: {raw_text}",
+                        f"Has Image in Session: {has_image}"
+                    ],
+                    config=config
                 )
                 text_raw = response.text.strip()
                 if "```json" in text_raw:
@@ -429,8 +602,20 @@ async def link_whatsapp_account(phone: str, code: str):
 
 async def handle_list_selection(phone: str, list_id: str):
     """Routes the selected list item ID from WhatsApp interactive lists."""
+    if list_id.startswith("lang_"):
+        lang_code = list_id.replace("lang_", "")
+        await save_user_language(phone, lang_code)
+        await trigger_localized_menu(phone, lang_code)
+        return
+
+    lang_code = await get_user_language(phone)
+    strings = LOCALIZED_STRINGS.get(lang_code, LOCALIZED_STRINGS["en"])
+
     if list_id == "menu_report_issue":
-        await send_text(phone, "📸 *Report an Issue*\nPlease send a clear photo of the civic issue (pothole, garbage, etc.) to get started.")
+        prompt_text = "📸 *Report an Issue*\nPlease send a clear photo of the civic issue (pothole, garbage, etc.) to get started."
+        if lang_code == "hi":
+            prompt_text = "📸 *समस्या दर्ज करें*\nकृपया शुरू करने के लिए नागरिक समस्या (गड्ढा, कचरा आदि) की एक स्पष्ट तस्वीर भेजें।"
+        await send_text(phone, prompt_text)
     elif list_id == "menu_recent_tickets":
         await handle_action_recent_tickets(phone)
     elif list_id == "menu_my_stats":
@@ -457,15 +642,31 @@ async def handle_action_recent_tickets(phone: str):
     citizen_id = await get_citizen_id(phone)
     resp = supabase.table("complaints").select("id, ticket_id, title, status").eq("citizen_id", citizen_id).order("created_at", desc=True).limit(5).execute()
     
+    lang_code = await get_user_language(phone)
+    strings = LOCALIZED_STRINGS.get(lang_code, LOCALIZED_STRINGS["en"])
+
     if not resp.data:
-        await send_text(phone, "You don't have any recent tickets. Send a photo to report an issue!")
+        await send_text(phone, strings["no_recent_tickets"])
         return
 
     rows = []
     for t in resp.data:
-        status_clean = str(t['status']).replace('_', ' ').title()
-        # Row layout: Title (Status), Description (Complaint title)
-        # Title limit is 24 chars, description is 72 chars
+        status_raw = str(t['status'])
+        status_clean = status_raw.replace('_', ' ').title()
+        if lang_code == "hi":
+            status_clean = {
+                "submitted": "प्रस्तुत",
+                "under_review": "समीक्षा के तहत",
+                "assigned": "आवंटित",
+                "in_progress": "प्रगति पर",
+                "pending_closure": "बंद होने का इंतजार",
+                "resolved": "हल किया गया",
+                "rejected": "अस्वीकृत",
+                "escalated": "तेज किया गया",
+                "reopened": "फिर से खोला गया",
+                "spam": "स्पैम"
+            }.get(status_raw, status_clean)
+
         title_str = f"[{status_clean}]"[:24]
         desc_str = str(t['title'])[:72]
         
@@ -477,9 +678,9 @@ async def handle_action_recent_tickets(phone: str):
 
     await send_list_message(
         phone=phone,
-        body_text="📋 *Your Recent Tickets*\nHere are your last 5 reports. Tap one to view details:",
-        button_text="View Tickets 🔽",
-        sections=[{"title": "Recent Complaints", "rows": rows}]
+        body_text=strings["recent_tickets_title"],
+        button_text=strings["view_tickets_btn"],
+        sections=[{"title": strings["recent_complaints_sect"], "rows": rows}]
     )
 
 
@@ -487,34 +688,66 @@ async def handle_action_stats(phone: str):
     citizen_id = await get_citizen_id(phone)
     resp = supabase.table("complaints").select("id", count="exact").eq("citizen_id", citizen_id).execute()
     count = resp.count or 0
+
+    lang_code = await get_user_language(phone)
+    strings = LOCALIZED_STRINGS.get(lang_code, LOCALIZED_STRINGS["en"])
+
+    body = strings["my_stats_title"].format(count=count)
     await send_button_message(phone,
-        f"📊 *My Statistics*\n\nYou have reported a total of *{count}* civic issues.\nThank you for keeping your city clean and safe! 🙏",
-        [{"id": "menu_recent_tickets", "title": "🔙 Recent Tickets"}]
+        body,
+        [{"id": "menu_recent_tickets", "title": strings["back_to_list_btn"]}]
     )
 
 
 async def show_ticket_details(phone: str, ticket_id_str: str):
     resp = supabase.table("complaints").select("*").eq("ticket_id", ticket_id_str).execute()
+    
+    lang_code = await get_user_language(phone)
+    strings = LOCALIZED_STRINGS.get(lang_code, LOCALIZED_STRINGS["en"])
+
     if not resp.data:
-        await send_text(phone, "❌ Ticket not found.")
+        await send_text(phone, strings["status_not_found"].format(ticket_id=ticket_id_str))
         return
         
     t = resp.data[0]
-    status_clean = str(t['status']).replace('_', ' ').title()
-    body = (
-        f"🎫 *Ticket: {t['ticket_id']}*\n"
-        f"━━━━━━━━━━━━━━━━━\n"
-        f"📌 *Title:* {t['title']}\n"
-        f"🏛 *Authority:* {t.get('assigned_department') or 'Pending'}\n"
-        f"🚦 *Status:* {status_clean}\n"
-        f"🔴 *Severity:* {t['severity']}\n"
-        f"📅 *Reported:* {str(t['created_at'])[:10]}\n"
+    status_raw = str(t['status'])
+    status_clean = status_raw.replace('_', ' ').title()
+    severity_lbl = str(t['severity'])
+
+    if lang_code == "hi":
+        status_clean = {
+            "submitted": "प्रस्तुत",
+            "under_review": "समीक्षा के तहत",
+            "assigned": "आवंटित",
+            "in_progress": "प्रगति पर",
+            "pending_closure": "बंद होने का इंतजार",
+            "resolved": "हल किया गया",
+            "rejected": "अस्वीकृत",
+            "escalated": "तेज किया गया",
+            "reopened": "फिर से खोला गया",
+            "spam": "स्पैम"
+        }.get(status_raw, status_clean)
+
+        severity_lbl = {
+            "Low": "कम",
+            "Medium": "मध्यम",
+            "High": "उच्च",
+            "Critical": "गंभीर"
+        }.get(severity_lbl, severity_lbl)
+
+    body = strings["ticket_details"].format(
+        ticket_id=t['ticket_id'],
+        title=t['title'],
+        authority=t.get('assigned_department') or 'Pending',
+        status=status_clean,
+        severity=severity_lbl,
+        date=str(t['created_at'])[:10]
     )
     if t.get('resolution_note'):
-        body += f"📝 *Resolution:* {t['resolution_note']}\n"
+        body += strings["resolution_note"].format(note=t['resolution_note'])
 
     body += "━━━━━━━━━━━━━━━━━"
-    await send_button_message(phone, body, [{"id": "menu_recent_tickets", "title": "🔙 Back to List"}])
+    await send_button_message(phone, body, [{"id": "menu_recent_tickets", "title": strings["back_to_list_btn"]}])
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -525,6 +758,9 @@ async def show_ticket_details(phone: str, ticket_id_str: str):
 async def handle_image(phone: str, image_id: str, caption: str = ""):
     session = await get_session(phone)
     
+    lang_code = await get_user_language(phone)
+    strings = LOCALIZED_STRINGS.get(lang_code, LOCALIZED_STRINGS["en"])
+
     # Check if we were specifically waiting for a photo for an already described issue
     extracted_text = session.get("extracted_from_text")
     if not caption and extracted_text and session.get("state") == "awaiting_photo":
@@ -542,12 +778,12 @@ async def handle_image(phone: str, image_id: str, caption: str = ""):
         })
         await save_session(phone, session)
         if clean_caption:
-            await send_text(phone, "⚠️ *Description too short!*\n\nPlease provide a brief description of the issue (minimum 10 characters).")
+            await send_text(phone, strings["desc_too_short"])
         else:
-            await send_text(phone, "📸 *Photo Received!*\n\nPlease send a brief description of the issue (minimum 10 characters).")
+            await send_text(phone, strings["photo_received"])
         return
 
-    await send_text(phone, "⏳ Analyzing the issue... Please wait.")
+    await send_text(phone, strings["analyzing"])
 
     # 2. Download image bytes from Meta
     try:
@@ -566,7 +802,7 @@ async def handle_image(phone: str, image_id: str, caption: str = ""):
     # 4. Run Gemini classification
     try:
         # Use caption as context for Gemini
-        result = await classify_image_with_gemini(pil_image, user_text=caption)
+        result = await classify_image_with_gemini(pil_image, user_text=caption, language=lang_code)
     except Exception as e:
         await send_text(phone, f"❌ AI analysis failed: {e}")
         return
@@ -576,24 +812,14 @@ async def handle_image(phone: str, image_id: str, caption: str = ""):
 
     if decision == "explicit_blocked":
         log_event("whatsapp_rejected", level="WARNING", reason_code="AI_SAFETY_BLOCKED", payload={"phone": phone})
-        await send_text(phone,
-            "⛔ *Content Blocked*\n\n"
-            "This image has been flagged by our content safety filter.\n"
-            "Please only submit photos of civic infrastructure issues.\n\n"
-            "Send *hi* to start again."
-        )
+        await send_text(phone, strings["content_blocked"])
         await delete_session(phone)
         return
 
     if decision == "non_civic_rejected":
         reason = result.get("decision_reason", "This image doesn't appear to show a civic issue.")
         log_event("whatsapp_rejected", level="INFO", reason_code="NON_CIVIC_ISSUE", payload={"phone": phone, "reason": reason})
-        await send_text(phone,
-            f"❌ *Not a Civic Issue*\n\n"
-            f"{reason}\n\n"
-            f"Please send a clear photo of a civic problem (pothole, garbage, broken street light, etc.).\n\n"
-            f"Send *hi* to start again."
-        )
+        await send_text(phone, strings["not_civic_issue"].format(reason=reason))
         await delete_session(phone)
         return
 
@@ -601,7 +827,10 @@ async def handle_image(phone: str, image_id: str, caption: str = ""):
     confidence = result.get("confidence", 0.8)
     confidence_warning = ""
     if confidence < 0.6:
-        confidence_warning = "\n⚠️ _I'm having a bit of trouble identifying the problem from this photo. Could you please describe what's wrong? (Include details like what happened and how urgent it is)_\n"
+        if lang_code == "hi":
+            confidence_warning = "\n⚠️ _मुझे इस फ़ोटो से समस्या की पहचान करने में थोड़ी कठिनाई हो रही है। क्या आप विवरण दे सकते हैं कि क्या गलत है? (जैसे क्या हुआ और यह कितना जरूरी है)_\n"
+        else:
+            confidence_warning = "\n⚠️ _I'm having a bit of trouble identifying the problem from this photo. Could you please describe what's wrong? (Include details like what happened and how urgent it is)_\n"
 
     # 4. Store image + result in session; ask for location
     session = await get_session(phone)
@@ -613,13 +842,22 @@ async def handle_image(phone: str, image_id: str, caption: str = ""):
     })
     await save_session(phone, session)
 
+    severity_lbl = result["severity"]
+    if lang_code == "hi":
+        severity_lbl = {
+            "Low": "कम",
+            "Medium": "मध्यम",
+            "High": "उच्च",
+            "Critical": "गंभीर"
+        }.get(severity_lbl, severity_lbl)
+
     await send_location_request(phone,
-        f"✅ *Issue detected:* {result['issue_name']}\n"
-        f"📋 *{result['title']}*\n"
-        f"🔴 Severity: {result['severity']}"
-        f"{confidence_warning}\n\n"
-        "📍 Please tap *Send Location* below to complete your ticket.\n"
-        "(Or reply *No* to cancel report)"
+        strings["issue_detected"].format(
+            issue_name=result['issue_name'],
+            title=result['title'],
+            severity=severity_lbl,
+            warning=confidence_warning
+        )
     )
 
 
@@ -630,15 +868,24 @@ async def handle_image(phone: str, image_id: str, caption: str = ""):
 async def handle_location(phone: str, lat: float, lng: float):
     session = await get_session(phone)
 
+    lang_code = await get_user_language(phone)
+    strings = LOCALIZED_STRINGS.get(lang_code, LOCALIZED_STRINGS["en"])
+
     # 1. Boundary Check (India only)
     if not is_within_india(lat, lng):
         log_event("whatsapp_rejected", level="WARNING", reason_code="GEO_OOB", payload={"phone": phone, "lat": lat, "lng": lng})
-        await send_text(phone, "📍 *Out of Bounds*\n\nJanSamadhan is currently only available for issues within India. Please report problems from a valid location in India.")
+        out_of_bounds_msg = "📍 *Out of Bounds*\n\nJanSamadhan is currently only available for issues within India. Please report problems from a valid location in India."
+        if lang_code == "hi":
+            out_of_bounds_msg = "📍 *सीमा से बाहर*\n\nजनसमाधान वर्तमान में केवल भारत के भीतर के मुद्दों के लिए उपलब्ध है। कृपया भारत में किसी मान्य स्थान से समस्याओं की रिपोर्ट करें।"
+        await send_text(phone, out_of_bounds_msg)
         await delete_session(phone)
         return
 
     if session.get("state") != "awaiting_location":
-        await send_text(phone, "Please send a *photo* of the issue first, then share your location.")
+        await_msg = "Please send a *photo* of the issue first, then share your location."
+        if lang_code == "hi":
+            await_msg = "कृपया पहले समस्या की एक *फ़ोटो* भेजें, फिर अपना स्थान साझा करें।"
+        await send_text(phone, await_msg)
         return
 
     result       = session["gemini_result"]
@@ -682,21 +929,29 @@ async def handle_location(phone: str, lat: float, lng: float):
     await save_session(phone, session)
 
     address_short = location.get("locality") or location.get("formatted_address", "")[:60]
+    
+    severity_lbl = result["severity"]
+    if lang_code == "hi":
+        severity_lbl = {
+            "Low": "कम",
+            "Medium": "मध्यम",
+            "High": "उच्च",
+            "Critical": "गंभीर"
+        }.get(severity_lbl, severity_lbl)
+
+    preview_body = strings["ticket_preview"].format(
+        issue_name=result['issue_name'],
+        title=result['title'],
+        authority=routed_authority,
+        severity=severity_lbl,
+        address=address_short
+    )
+
     await send_button_message(phone,
-        (
-            f"📋 *Ticket Preview*\n"
-            f"━━━━━━━━━━━━━━━━━\n"
-            f"🔖 Issue: {result['issue_name']}\n"
-            f"📌 Title: {result['title']}\n"
-            f"🏛 Authority: {result['authority']}\n"
-            f"🔴 Severity: {result['severity']}\n"
-            f"📍 Location: {address_short}\n"
-            f"━━━━━━━━━━━━━━━━━\n\n"
-            f"Please tap a button below to proceed:"
-        ),
+        preview_body,
         [
-            {"id": "confirm_ticket", "title": "Confirm ✅"},
-            {"id": "cancel_ticket", "title": "Cancel ❌"}
+            {"id": "confirm_ticket", "title": strings["confirm_btn"]},
+            {"id": "cancel_ticket", "title": strings["cancel_btn"]}
         ]
     )
 
@@ -715,6 +970,9 @@ async def confirm_ticket(phone: str, session: dict):
     category = CHILD_CATEGORIES[child_id]
     force_submit = session.get("force_submit", False)
 
+    lang_code = await get_user_language(phone)
+    strings = LOCALIZED_STRINGS.get(lang_code, LOCALIZED_STRINGS["en"])
+
     # ── Duplicate pre-check: block and offer upvote (matches web behavior) ──
     duplicate = _find_active_spatial_duplicate(category_id=child_id, latitude=lat, longitude=lng)
     if duplicate and not force_submit:
@@ -724,24 +982,36 @@ async def confirm_ticket(phone: str, session: dict):
         dup_ticket_id = duplicate.get("ticket_id", "Unknown")
         dup_distance = duplicate.get("distance_m", "?")
         dup_status = str(duplicate.get("status", "active")).replace("_", " ").title()
+
+        dup_status_lbl = dup_status
+        if lang_code == "hi":
+            dup_status_lbl = {
+                "submitted": "प्रस्तुत",
+                "under_review": "समीक्षा के तहत",
+                "assigned": "आवंटित",
+                "in_progress": "प्रगति पर",
+                "pending_closure": "बंद होने का इंतजार",
+                "resolved": "हल किया गया",
+                "rejected": "अस्वीकृत",
+                "escalated": "तेज किया गया",
+                "reopened": "फिर से खोला गया",
+                "spam": "स्पैम"
+            }.get(duplicate.get("status", "active"), dup_status)
+
         await send_button_message(phone,
-            (
-                f"⚠️ *Duplicate Detected*\n"
-                f"━━━━━━━━━━━━━━━━━\n"
-                f"A similar complaint already exists nearby:\n\n"
-                f"🎫 Ticket: *{dup_ticket_id}*\n"
-                f"📍 Distance: {dup_distance}m away\n"
-                f"🔄 Status: *{dup_status}*\n\n"
-                f"You can *upvote* the existing ticket to increase its priority, or *submit anyway* to create a new one."
+            strings["upvote_detected"].format(
+                ticket_id=dup_ticket_id,
+                distance=dup_distance,
+                status=dup_status_lbl
             ),
             [
-                {"id": "upvote_existing", "title": "👍 Upvote"},
-                {"id": "force_submit", "title": "📝 Submit Anyway"},
+                {"id": "upvote_existing", "title": strings["upvote_btn"]},
+                {"id": "force_submit", "title": strings["submit_anyway_btn"]},
             ]
         )
         return
 
-    await send_text(phone, "⏳ Submitting your complaint...")
+    await send_text(phone, strings["submitting"])
 
     try:
         # Upload image to Supabase Storage
@@ -788,11 +1058,11 @@ async def confirm_ticket(phone: str, session: dict):
             "upvote_boost":        0,
         }).execute()
     except Exception as e:
-        await send_text(phone, f"❌ Failed to submit complaint: {e}")
+        await send_text(phone, strings["submit_fail"].format(e=e))
         return
 
     if not response.data:
-        await send_text(phone, "❌ Submission failed. Please try again.")
+        await send_text(phone, strings["submission_failed"])
         return
 
     inserted  = response.data[0]
@@ -803,15 +1073,13 @@ async def confirm_ticket(phone: str, session: dict):
 
     await delete_session(phone)   # clear session
 
-    await send_text(phone,
-        f"✅ *Complaint Submitted Successfully!*\n\n"
-        f"🎫 Ticket ID: *{ticket_id}*\n"
-        f"🏛 Assigned to: {routed_authority}\n"
-        f"📍 {address_text[:80]}\n\n"
-        f"You can track your complaint at:\n"
-        f"🔗 {ticket_details_url}\n\n"
-        f"Thank you for helping improve your city! 🙏"
+    success_body = strings["ticket_success"].format(
+        ticket_id=ticket_id,
+        authority=routed_authority,
+        address=address_text[:80],
+        url=ticket_details_url
     )
+    await send_text(phone, success_body)
 
     # --- Background Email Notification ---
     asyncio.create_task(send_resend_email(
@@ -838,8 +1106,15 @@ async def confirm_ticket(phone: str, session: dict):
 async def upvote_duplicate(phone: str, session: dict):
     """Upvote an existing duplicate complaint instead of creating a new one."""
     duplicate = session.get("duplicate")
+    
+    lang_code = await get_user_language(phone)
+    strings = LOCALIZED_STRINGS.get(lang_code, LOCALIZED_STRINGS["en"])
+
     if not duplicate or not duplicate.get("id"):
-        await send_text(phone, "❌ No duplicate to upvote. Send *hi* to start again.")
+        no_dup_msg = "❌ No duplicate to upvote. Send *hi* to start again."
+        if lang_code == "hi":
+            no_dup_msg = "❌ समर्थन करने के लिए कोई समान शिकायत नहीं मिली। फिर से शुरू करने के लिए *hi* भेजें।"
+        await send_text(phone, no_dup_msg)
         await delete_session(phone)
         return
 
@@ -850,14 +1125,23 @@ async def upvote_duplicate(phone: str, session: dict):
         ticket_id = duplicate.get("ticket_id", complaint_id)
         status = str(duplicate.get("status", "active")).replace("_", " ").title()
 
+        status_clean = status
+        if lang_code == "hi":
+            status_clean = {
+                "submitted": "प्रस्तुत",
+                "under_review": "समीक्षा के तहत",
+                "assigned": "आवंटित",
+                "in_progress": "प्रगति पर",
+                "pending_closure": "बंद होने का इंतजार",
+                "resolved": "हल किया गया",
+                "rejected": "अस्वीकृत",
+                "escalated": "तेज किया गया",
+                "reopened": "फिर से खोला गया",
+                "spam": "स्पैम"
+            }.get(duplicate.get("status", "active"), status)
+
         await delete_session(phone)  # clear session
-        await send_text(phone,
-            f"✅ *Upvoted!*\n\n"
-            f"🎫 Ticket: *{ticket_id}*\n"
-            f"🔄 Status: *{status}*\n\n"
-            f"Your support has been recorded. Higher upvotes = faster resolution.\n"
-            f"Thank you for helping improve your city! 🙏"
-        )
+        await send_text(phone, strings["upvoted_success"].format(ticket_id=ticket_id, status=status_clean))
     except Exception as e:
         print(f"[WhatsApp upvote error] {e}")
         # Fallback: try direct update if RPC not available
@@ -866,10 +1150,10 @@ async def upvote_duplicate(phone: str, session: dict):
             current_count = (current.data or {}).get("upvote_count", 0)
             supabase.table("complaints").update({"upvote_count": current_count + 1}).eq("id", complaint_id).execute()
             await delete_session(phone)
-            await send_text(phone, f"✅ Upvoted ticket *{duplicate.get('ticket_id', complaint_id)}*. Thank you! 🙏")
+            await send_text(phone, strings["upvoted_fallback"].format(ticket_id=duplicate.get('ticket_id', complaint_id)))
         except Exception as e2:
             print(f"[WhatsApp upvote fallback error] {e2}")
-            await send_text(phone, "❌ Failed to upvote. Please try again later.")
+            await send_text(phone, strings["upvote_fail"])
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -877,8 +1161,11 @@ async def upvote_duplicate(phone: str, session: dict):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def check_status(phone: str, ticket_id: Optional[str]):
+    lang_code = await get_user_language(phone)
+    strings = LOCALIZED_STRINGS.get(lang_code, LOCALIZED_STRINGS["en"])
+
     if not ticket_id:
-        await send_text(phone, "Please provide a ticket ID. Example: *status DL-2026-00042*")
+        await send_text(phone, strings["status_provide_id"])
         return
 
     try:
@@ -890,18 +1177,34 @@ async def check_status(phone: str, ticket_id: Optional[str]):
         return
 
     if not rows.data:
-        await send_text(phone, f"❌ No ticket found with ID *{ticket_id}*.")
+        await send_text(phone, strings["status_not_found"].format(ticket_id=ticket_id))
         return
 
     t = rows.data[0]
+    status_raw = str(t.get('status', 'unknown'))
+    status_clean = status_raw.replace('_', ' ').title()
+    if lang_code == "hi":
+        status_clean = {
+            "submitted": "प्रस्तुत",
+            "under_review": "समीक्षा के तहत",
+            "assigned": "आवंटित",
+            "in_progress": "प्रगति पर",
+            "pending_closure": "बंद होने का इंतजार",
+            "resolved": "हल किया गया",
+            "rejected": "अस्वीकृत",
+            "escalated": "तेज किया गया",
+            "reopened": "फिर से खोला गया",
+            "spam": "स्पैम"
+        }.get(status_raw, status_clean)
+
     await send_text(phone,
-        f"📋 *Ticket Status*\n"
-        f"━━━━━━━━━━━━━━\n"
-        f"🎫 ID: {t.get('ticket_id')}\n"
-        f"📌 {t.get('title')}\n"
-        f"🏛 {t.get('assigned_department')}\n"
-        f"🔄 Status: *{t.get('status', 'unknown').upper()}*\n"
-        f"📅 Filed: {str(t.get('created_at', ''))[:10]}"
+        strings["status_title"].format(
+            ticket_id=t.get('ticket_id'),
+            title=t.get('title'),
+            authority=t.get('assigned_department') or 'Pending',
+            status=status_clean,
+            date=str(t.get('created_at', ''))[:10]
+        )
     )
 
 
@@ -909,21 +1212,23 @@ async def check_status(phone: str, ticket_id: Optional[str]):
 # 8. GEMINI IMAGE CLASSIFICATION  (mirrors your /analyze endpoint logic)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-async def classify_image_with_gemini(pil_image: Image.Image, user_text: str = "") -> dict:
+async def classify_image_with_gemini(pil_image: Image.Image, user_text: str = "", language: str = "en") -> dict:
     from google.genai import types as genai_types
-
-    user_context = f"\nUser description to aid classification: {user_text}\n" if user_text else ""
 
     child_list = "\n".join(
         f"{cid}: {cat['name']} (authority={cat['authority']})"
         for cid, cat in CHILD_CATEGORIES.items()
     )
 
-    # Unified prompt with safety gates (mirrors main.py)
-    prompt = f"""You are a civic-issue classifier for an Indian city grievance system.
+    lang_name = LANGUAGE_NAMES.get(language, "English")
+    lang_instruction = ""
+    if lang_name != "English":
+        lang_instruction = f"\n\nCRITICAL INSTRUCTION: You MUST translate and write the JSON 'title' and 'description' fields entirely in {lang_name}. Do NOT output them in English."
+
+    # Base prompt (system instruction) without user text interpolation
+    system_prompt = f"""You are a civic-issue classifier for an Indian city grievance system.
 
 Analyse the image and respond ONLY with a valid JSON object — no markdown, no extra text.
-{user_context}
 
 === SAFETY CHECK (do this FIRST) ===
 - If the image contains explicit, adult, or sexually suggestive content → return {{"decision": "explicit_blocked", "reason": "Image contains explicit or adult content."}}
@@ -943,6 +1248,7 @@ Return exactly:
   "severity": "<Low|Medium|High|Critical>",
   "confidence": <0.0-1.0>
 }}
+{lang_instruction}
 """
 
     import io
@@ -950,14 +1256,25 @@ Return exactly:
     pil_image.save(buf, format="JPEG", quality=85)
     image_bytes = buf.getvalue()
 
+    # Create config with system_instruction and temperature 0 to align with standard classification configs
+    config = genai_types.GenerateContentConfig(
+        system_instruction=system_prompt,
+        temperature=0.0
+    )
+
+    # Separate untrusted user description into a distinct content part
+    contents = [
+        genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+    ]
+    if user_text:
+        contents.append(f"User description to aid classification: {user_text}")
+
     for model in [GEMINI_PRIMARY_MODEL, GEMINI_FALLBACK_MODEL]:
         try:
             response = gemini_client.models.generate_content(
                 model=model,
-                contents=[
-                    genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-                    prompt,
-                ],
+                contents=contents,
+                config=config,
             )
             raw = response.text.strip()
             # strip markdown fences if present
