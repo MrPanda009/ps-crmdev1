@@ -1,16 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 
 import { KPIStatsRow } from "../KPIStatsRow";
-import { MapLayersPanel } from "../MapLayersPanel";
 import { MapSection } from "../MapSection";
 import { ActiveInterventionsPanel } from "../ActiveInterventionsPanel";
 import { DelhiHealthScoreBar } from "../DelhiHealthScoreBar";
 import { QuickActionsFooter } from "../QuickActionsFooter";
 import { InterventionReviewModal } from "../InterventionReviewModal";
 
-import { Intervention, InterventionTab } from "../cm-types";
+import { Intervention, InterventionTab, ZoneScore } from "../cm-types";
 import { delhiKpis, cmInterventions, delhiZoneScores } from "../cm-mock";
 import type { ZoneFeature } from "../cm-geo";
 
@@ -22,6 +21,16 @@ export interface DelhiOverviewViewProps {
   /** Click a zone polygon to drill into it. */
   onRegionClick: (zoneId: string) => void;
   triggerToast: (message: string) => void;
+  activeLayer: string;
+  onLayerChange: (layerId: string) => void;
+  intensity: number;
+  onIntensityChange: (intensity: number) => void;
+  activeSeverities: string[];
+  onToggleSeverity: (severity: string) => void;
+  overallScore?: number;
+  trendStr?: string;
+  liveZoneScores?: ZoneScore[];
+  isLoading?: boolean;
 }
 
 // All / Critical / Escalated tabs
@@ -36,12 +45,48 @@ export const DelhiOverviewView: React.FC<DelhiOverviewViewProps> = ({
   zoneCounts,
   onRegionClick,
   triggerToast,
+  activeLayer,
+  onLayerChange,
+  intensity,
+  onIntensityChange,
+  activeSeverities,
+  onToggleSeverity,
+  overallScore = 84,
+  trendStr = "+3 pts",
+  liveZoneScores,
+  isLoading = false,
 }) => {
-  const [activeLayer, setActiveLayer] = useState("density");
   const [searchQuery, setSearchQuery] = useState("");
-  const [intensity, setIntensity] = useState(70);
   const [interventionFilter, setInterventionFilter] = useState("all");
   const [selectedIntervention, setSelectedIntervention] = useState<Intervention | null>(null);
+
+  // Search filter for map regions
+  const filteredZoneRegions = useMemo(() => {
+    if (!searchQuery) return zoneRegions;
+    return zoneRegions.filter((r) =>
+      r.properties.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [zoneRegions, searchQuery]);
+
+  // Search & tab filters for interventions
+  const filteredInterventions = useMemo(() => {
+    let list = cmInterventions;
+    if (interventionFilter !== "all") {
+      const tab = escalationTabs.find((t) => t.id === interventionFilter);
+      if (tab?.match) list = list.filter(tab.match);
+    }
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      list = list.filter(
+        (i) =>
+          i.title.toLowerCase().includes(query) ||
+          i.description.toLowerCase().includes(query) ||
+          (i.zone?.toLowerCase().includes(query) ?? false) ||
+          (i.ward?.toLowerCase().includes(query) ?? false)
+      );
+    }
+    return list;
+  }, [interventionFilter, searchQuery]);
 
   return (
     <>
@@ -49,14 +94,6 @@ export const DelhiOverviewView: React.FC<DelhiOverviewViewProps> = ({
         <KPIStatsRow kpis={delhiKpis} onCardClick={(id) => triggerToast(`Navigating to details for KPI card: ${id}`)} />
 
         <div className="flex flex-col xl:flex-row gap-3">
-          <MapLayersPanel
-            activeLayer={activeLayer}
-            onLayerChange={setActiveLayer}
-            intensity={intensity}
-            onIntensityChange={setIntensity}
-            className="xl:h-[560px]"
-          />
-
           <div className="flex-1 flex flex-col min-h-[450px] xl:h-[560px]">
             <MapSection
               searchQuery={searchQuery}
@@ -65,18 +102,24 @@ export const DelhiOverviewView: React.FC<DelhiOverviewViewProps> = ({
               wardTitle="Delhi Overview"
               wardSubtitle="12 Zones  •  250 Wards  •  Population: 2.1 Cr"
               searchPlaceholder="Search Zone / Ward..."
-              regions={zoneRegions}
+              regions={filteredZoneRegions}
               regionCounts={zoneCounts}
               onRegionClick={onRegionClick}
               choropleth
               showComplaints={false}
               className="xl:h-full"
+              activeLayer={activeLayer}
+              onLayerChange={onLayerChange}
+              intensity={intensity}
+              onIntensityChange={onIntensityChange}
+              activeSeverities={activeSeverities}
+              onToggleSeverity={onToggleSeverity}
             />
           </div>
 
           <div className="w-full xl:w-[380px] shrink-0 flex flex-col gap-3 xl:h-[560px]">
             <ActiveInterventionsPanel
-              interventions={cmInterventions}
+              interventions={filteredInterventions}
               activeFilter={interventionFilter}
               onFilterChange={setInterventionFilter}
               onReviewClick={setSelectedIntervention}
@@ -88,7 +131,12 @@ export const DelhiOverviewView: React.FC<DelhiOverviewViewProps> = ({
           </div>
         </div>
 
-        <DelhiHealthScoreBar overall={84} trend="+3 pts" zones={delhiZoneScores} />
+        <DelhiHealthScoreBar 
+          overall={overallScore} 
+          trend={trendStr} 
+          zones={liveZoneScores && liveZoneScores.length > 0 ? liveZoneScores : delhiZoneScores} 
+          isLoading={isLoading}
+        />
       </main>
 
       <QuickActionsFooter onFiltersClick={() => triggerToast("Filters panel coming soon")} />

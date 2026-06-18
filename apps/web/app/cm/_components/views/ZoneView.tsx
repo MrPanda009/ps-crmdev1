@@ -3,7 +3,6 @@
 import React, { useState, useMemo } from "react";
 
 import { KPIStatsRow } from "../KPIStatsRow";
-import { MapLayersPanel } from "../MapLayersPanel";
 import { MapSection } from "../MapSection";
 import { AIInsightsPanel } from "../AIInsightsPanel";
 import { DepartmentPerformanceTable } from "../DepartmentPerformanceTable";
@@ -38,6 +37,14 @@ export interface ZoneViewProps {
   onRegionClick: (wardNo: string) => void;
   triggerToast: (message: string) => void;
   isDark: boolean;
+  activeLayer: string;
+  onLayerChange: (layerId: string) => void;
+  intensity: number;
+  onIntensityChange: (intensity: number) => void;
+  activeSeverities: string[];
+  onToggleSeverity: (severity: string) => void;
+  liveWardScores?: Record<number, { score: number; activeComplaints: number }>;
+  zoneHealthScore?: number;
 }
 
 // All / Critical / Escalated tabs (zone + delhi level)
@@ -55,14 +62,64 @@ export const ZoneView: React.FC<ZoneViewProps> = ({
   onRegionClick,
   triggerToast,
   isDark,
+  activeLayer,
+  onLayerChange,
+  intensity,
+  onIntensityChange,
+  activeSeverities,
+  onToggleSeverity,
+  liveWardScores,
+  zoneHealthScore,
 }) => {
-  const [activeLayer, setActiveLayer] = useState("density");
   const [searchQuery, setSearchQuery] = useState("");
-  const [intensity, setIntensity] = useState(70);
   const [sortField, setSortField] = useState<keyof DepartmentPerf>("open");
   const [sortAsc, setSortAsc] = useState(false);
   const [interventionFilter, setInterventionFilter] = useState("all");
   const [selectedIntervention, setSelectedIntervention] = useState<Intervention | null>(null);
+
+  const liveWardHealthRows = useMemo(() => {
+    return wardRegions.map((w) => {
+      const wardNo = w.properties.ward_no;
+      const wardName = w.properties.wardname;
+      const stats = liveWardScores?.[wardNo] || { score: 100, activeComplaints: 0 };
+      return {
+        name: `Ward ${wardNo} - ${wardName}`,
+        count: stats.activeComplaints,
+        sev: `${stats.score}%`,
+        color: stats.score >= 85 ? "bg-emerald-500" : stats.score >= 70 ? "bg-amber-400" : "bg-red-600",
+      };
+    });
+  }, [wardRegions, liveWardScores]);
+
+  // Search filter for map regions
+  const filteredWardRegions = useMemo(() => {
+    if (!searchQuery) return wardRegions;
+    const query = searchQuery.toLowerCase();
+    return wardRegions.filter((r) =>
+      r.properties.wardname.toLowerCase().includes(query) ||
+      String(r.properties.ward_no).includes(query)
+    );
+  }, [wardRegions, searchQuery]);
+
+  // Search & tab filters for interventions
+  const filteredInterventions = useMemo(() => {
+    let list = zoneInterventions;
+    if (interventionFilter !== "all") {
+      const tab = escalationTabs.find((t) => t.id === interventionFilter);
+      if (tab?.match) list = list.filter(tab.match);
+    }
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      list = list.filter(
+        (i) =>
+          i.title.toLowerCase().includes(query) ||
+          i.description.toLowerCase().includes(query) ||
+          (i.zone?.toLowerCase().includes(query) ?? false) ||
+          (i.ward?.toLowerCase().includes(query) ?? false)
+      );
+    }
+    return list;
+  }, [interventionFilter, searchQuery]);
 
   const handleSort = (field: keyof DepartmentPerf) => {
     if (sortField === field) setSortAsc(!sortAsc);
@@ -91,14 +148,6 @@ export const ZoneView: React.FC<ZoneViewProps> = ({
         <KPIStatsRow kpis={zoneKpis} onCardClick={(id) => triggerToast(`Navigating to details for KPI card: ${id}`)} />
 
         <div className="flex flex-col xl:flex-row gap-3">
-          <MapLayersPanel
-            activeLayer={activeLayer}
-            onLayerChange={setActiveLayer}
-            intensity={intensity}
-            onIntensityChange={setIntensity}
-            className="xl:h-[760px]"
-          />
-
           <div className="flex-1 flex flex-col gap-3">
             <div className="flex flex-col xl:flex-row gap-3 xl:h-[450px] shrink-0">
               <MapSection
@@ -109,12 +158,18 @@ export const ZoneView: React.FC<ZoneViewProps> = ({
                 wardSubtitle={`${wardRegions.length} Wards  •  Click a ward to drill in`}
                 searchPlaceholder="Search Ward / Location..."
                 onBack={onBack}
-                regions={wardRegions}
+                regions={filteredWardRegions}
                 regionCounts={wardCounts}
                 onRegionClick={onRegionClick}
                 choropleth
                 showComplaints={false}
                 className="xl:h-full"
+                activeLayer={activeLayer}
+                onLayerChange={onLayerChange}
+                intensity={intensity}
+                onIntensityChange={onIntensityChange}
+                activeSeverities={activeSeverities}
+                onToggleSeverity={onToggleSeverity}
               />
               <div className="w-full xl:w-80 shrink-0 flex flex-col gap-3 xl:h-full">
                 <AIInsightsPanel insights={zoneInsights} />
@@ -130,7 +185,7 @@ export const ZoneView: React.FC<ZoneViewProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 shrink-0">
               <LocalityHealthTable
-                localities={wardHealthRows}
+                localities={liveWardHealthRows}
                 title="WARD HEALTH SUMMARY"
                 rowLabel="Ward"
                 actionLabel="View Ward Analytics"
@@ -155,14 +210,14 @@ export const ZoneView: React.FC<ZoneViewProps> = ({
               showParty={false}
               onCall={() => triggerToast("Connecting to Zone Commissioner...")}
               metrics={[
-                { label: "Zone Health", value: "76", suffix: "/100", highlight: true },
+                { label: "Zone Health", value: String(zoneHealthScore ?? 76), suffix: "/100", highlight: true },
                 { label: "Budget Used", value: "68%" },
                 { label: "Field Staff", value: "428" },
                 { label: "Escalations", value: "5" },
               ]}
             />
             <ActiveInterventionsPanel
-              interventions={zoneInterventions}
+              interventions={filteredInterventions}
               activeFilter={interventionFilter}
               onFilterChange={setInterventionFilter}
               onReviewClick={setSelectedIntervention}

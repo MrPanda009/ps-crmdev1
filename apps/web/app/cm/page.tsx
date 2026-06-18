@@ -11,9 +11,10 @@ import { DelhiOverviewView } from "./_components/views/DelhiOverviewView";
 import { ZoneView } from "./_components/views/ZoneView";
 import { WardView } from "./_components/views/WardView";
 import {
+  usePrecomputedZoneRegions,
   useWardGeoJSON,
   useComplaintPoints,
-  buildZoneRegions,
+  useDelhiHealthScores,
   wardRegionsForZone,
   wardByNo,
   countPointsInRegions,
@@ -45,14 +46,94 @@ export default function CMCommandCenterPage() {
 
   const viewRef = useRef<HTMLDivElement>(null);
 
-  // Real geographic data (ward polygons + complaint points)
-  const { wards } = useWardGeoJSON();
+  // Lifted Map Filter & Control States
+  const [activeLayer, setActiveLayer] = useState("density");
+  const [intensity, setIntensity] = useState(70);
+  const [activeSeverities, setActiveSeverities] = useState<string[]>([
+    "Very High",
+    "High",
+    "Medium",
+    "Low",
+    "Very Low",
+  ]);
+
+  // Real geographic data (precomputed zones, lazy loaded wards + complaint points)
+  const { zoneRegions } = usePrecomputedZoneRegions();
+  const { wards } = useWardGeoJSON(view !== "delhi");
   const { points } = useComplaintPoints();
 
-  const zoneRegions = useMemo(() => buildZoneRegions(wards), [wards]);
+  // Live health scores calculated from DB
+  const { overall: liveOverallScore, trend: liveTrendStr, zones: liveZoneScores, wards: liveWardScores, loaded } = useDelhiHealthScores();
+
+  const selectedZoneHealthScore = useMemo(() => {
+    if (!selectedZoneId) return undefined;
+    const zoneData = liveZoneScores.find(z => z.id === selectedZoneId);
+    return zoneData?.score;
+  }, [selectedZoneId, liveZoneScores]);
+
+  const selectedWardHealthScore = useMemo(() => {
+    if (selectedWardNo == null) return undefined;
+    return liveWardScores[selectedWardNo]?.score;
+  }, [selectedWardNo, liveWardScores]);
+
+  // Dynamic filter function for points used in choropleth & markers
+  const filteredPoints = useMemo(() => {
+    return points.filter((p) => {
+      // 1. Filter by Severity Legend selection
+      const sev = (p.severity ?? "").toLowerCase().trim();
+      let label = "Low";
+      if (sev === "l4" || sev === "critical" || sev === "crit") label = "Very High";
+      else if (sev === "l3" || sev === "high") label = "High";
+      else if (sev === "l2" || sev === "medium" || sev === "med") label = "Medium";
+      else if (sev === "l1" || sev === "low") label = "Low";
+      else if (sev === "very low" || sev === "very_low" || sev === "l0") label = "Very Low";
+
+      if (!activeSeverities.includes(label)) return false;
+
+      // 2. Filter by Active Layer selection
+      if (!activeLayer || activeLayer === "density") return true;
+
+      const title = p.title.toLowerCase();
+      const desc = p.description.toLowerCase();
+      const dept = (p.assigned_department ?? "").toLowerCase();
+
+      if (activeLayer === "critical") {
+        return label === "Very High";
+      }
+      if (activeLayer === "sla") {
+        return p.sla_breached;
+      }
+      if (activeLayer === "garbage") {
+        return title.includes("garbage") || title.includes("dump") || desc.includes("garbage") || desc.includes("dump") || dept === "mcd";
+      }
+      if (activeLayer === "roads") {
+        return title.includes("road") || title.includes("pothole") || desc.includes("road") || desc.includes("pothole") || dept === "pwd";
+      }
+      if (activeLayer === "water") {
+        return title.includes("water") || title.includes("sewage") || title.includes("leak") || title.includes("drain") || desc.includes("water") || desc.includes("sewage") || desc.includes("leak") || desc.includes("drain") || dept === "djb";
+      }
+      if (activeLayer === "streetlights") {
+        return title.includes("light") || title.includes("electricity") || desc.includes("light") || desc.includes("electricity");
+      }
+      if (activeLayer === "cctv") {
+        return title.includes("cctv") || title.includes("camera") || title.includes("detect") || desc.includes("cctv") || desc.includes("camera") || desc.includes("detect");
+      }
+
+      return true;
+    });
+  }, [points, activeLayer, activeSeverities]);
+
+  const handleToggleSeverity = (severity: string) => {
+    setActiveSeverities((prev) =>
+      prev.includes(severity)
+        ? prev.filter((s) => s !== severity)
+        : [...prev, severity]
+    );
+  };
+
   const zoneCounts = useMemo(
-    () => countPointsInRegions(zoneRegions, points),
-    [zoneRegions, points]
+    () => countPointsInRegions(zoneRegions, filteredPoints),
+    [zoneRegions, filteredPoints]
   );
 
   const zoneWardRegions = useMemo(
@@ -60,8 +141,8 @@ export default function CMCommandCenterPage() {
     [wards, selectedZoneId]
   );
   const wardCounts = useMemo(
-    () => countPointsInRegions(zoneWardRegions, points),
-    [zoneWardRegions, points]
+    () => countPointsInRegions(zoneWardRegions, filteredPoints),
+    [zoneWardRegions, filteredPoints]
   );
 
   const wardRegion = useMemo(
@@ -154,6 +235,16 @@ export default function CMCommandCenterPage() {
             zoneCounts={zoneCounts}
             onRegionClick={drillToZone}
             triggerToast={triggerToast}
+            activeLayer={activeLayer}
+            onLayerChange={setActiveLayer}
+            intensity={intensity}
+            onIntensityChange={setIntensity}
+            activeSeverities={activeSeverities}
+            onToggleSeverity={handleToggleSeverity}
+            overallScore={liveOverallScore}
+            trendStr={liveTrendStr}
+            liveZoneScores={liveZoneScores}
+            isLoading={!loaded}
           />
         )}
         {view === "zone" && (
@@ -165,6 +256,14 @@ export default function CMCommandCenterPage() {
             onRegionClick={drillToWard}
             triggerToast={triggerToast}
             isDark={isDark}
+            activeLayer={activeLayer}
+            onLayerChange={setActiveLayer}
+            intensity={intensity}
+            onIntensityChange={setIntensity}
+            activeSeverities={activeSeverities}
+            onToggleSeverity={handleToggleSeverity}
+            liveWardScores={liveWardScores}
+            zoneHealthScore={selectedZoneHealthScore}
           />
         )}
         {view === "ward" && (
@@ -175,6 +274,13 @@ export default function CMCommandCenterPage() {
             wardTitle={`${wardLabel} (Delhi)`}
             wardSubtitle={`${zoneName} Zone${wardPop ? `  |  Population: ${wardPop.toLocaleString("en-IN")}` : ""}`}
             wardRegion={wardRegion}
+            activeLayer={activeLayer}
+            onLayerChange={setActiveLayer}
+            intensity={intensity}
+            onIntensityChange={setIntensity}
+            activeSeverities={activeSeverities}
+            onToggleSeverity={handleToggleSeverity}
+            liveWardHealthScore={selectedWardHealthScore}
           />
         )}
       </div>
