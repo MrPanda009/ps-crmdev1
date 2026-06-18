@@ -63,58 +63,58 @@ export const CouncillorInfoCard: React.FC<CouncillorInfoCardProps> = ({
     return (
       <div
         ref={cardRef}
-        className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 flex-1 lg:max-w-md select-none flex flex-col gap-3.5 animate-pulse"
+        className="bg-theme-card rounded-xl border border-theme-border p-4 shadow-sm flex-1 lg:max-w-md select-none flex flex-col gap-3.5 animate-pulse transition-colors duration-300"
       >
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <div className="h-3.5 w-3.5 bg-slate-200 dark:bg-zinc-800 rounded-full"></div>
-            <div className="h-3 w-28 bg-slate-200 dark:bg-zinc-800 rounded"></div>
+            <div className="h-3.5 w-3.5 bg-theme-bg rounded-full"></div>
+            <div className="h-3 w-28 bg-theme-bg rounded"></div>
           </div>
         </div>
 
         {/* Profile Area */}
         <div className="flex items-start gap-4">
-          <div className="h-28 w-24 rounded-lg bg-slate-200 dark:bg-zinc-800 shrink-0"></div>
+          <div className="h-28 w-24 rounded-lg bg-theme-bg shrink-0"></div>
           <div className="flex-1 space-y-3 mt-2">
-            <div className="h-2 w-12 bg-slate-200 dark:bg-zinc-800 rounded"></div>
-            <div className="h-4 w-32 bg-slate-200 dark:bg-zinc-800 rounded"></div>
-            <div className="h-2.5 w-40 bg-slate-200 dark:bg-zinc-800 rounded"></div>
-            <div className="h-3 w-20 bg-slate-200 dark:bg-zinc-800 rounded-full mt-1"></div>
+            <div className="h-2 w-12 bg-theme-bg rounded"></div>
+            <div className="h-4 w-32 bg-theme-bg rounded"></div>
+            <div className="h-2.5 w-40 bg-theme-bg rounded"></div>
+            <div className="h-3 w-20 bg-theme-bg rounded-full mt-1"></div>
           </div>
         </div>
 
         {/* Details Section */}
         {showAbout && (
-          <div className="p-3 bg-slate-50 dark:bg-zinc-800/10 rounded-lg border border-slate-100 dark:border-zinc-800/40 space-y-3">
-            <div className="h-2.5 w-24 bg-slate-200 dark:bg-zinc-800 rounded"></div>
+          <div className="p-3 bg-theme-bg/25 rounded-lg border border-theme-border/40 space-y-3">
+            <div className="h-2.5 w-24 bg-theme-bg rounded"></div>
             <div className="space-y-2.5">
               <div className="space-y-1">
-                <div className="h-1.5 w-12 bg-slate-100 dark:bg-zinc-800 rounded"></div>
-                <div className="h-2.5 w-24 bg-slate-200 dark:bg-zinc-800 rounded"></div>
+                <div className="h-1.5 w-12 bg-theme-bg/60 rounded"></div>
+                <div className="h-2.5 w-24 bg-theme-bg rounded"></div>
               </div>
               <div className="space-y-1">
-                <div className="h-1.5 w-32 bg-slate-100 dark:bg-zinc-800 rounded"></div>
-                <div className="h-2.5 w-48 bg-slate-200 dark:bg-zinc-800 rounded"></div>
+                <div className="h-1.5 w-32 bg-theme-bg/60 rounded"></div>
+                <div className="h-2.5 w-48 bg-theme-bg rounded"></div>
               </div>
               <div className="space-y-1">
-                <div className="h-1.5 w-20 bg-slate-100 dark:bg-zinc-800 rounded"></div>
-                <div className="h-2.5 w-32 bg-slate-200 dark:bg-zinc-800 rounded"></div>
+                <div className="h-1.5 w-20 bg-theme-bg/60 rounded"></div>
+                <div className="h-2.5 w-32 bg-theme-bg rounded"></div>
               </div>
               <div className="space-y-1">
-                <div className="h-1.5 w-16 bg-slate-100 dark:bg-zinc-800 rounded"></div>
-                <div className="h-2.5 w-16 bg-slate-200 dark:bg-zinc-800 rounded"></div>
+                <div className="h-1.5 w-16 bg-theme-bg/60 rounded"></div>
+                <div className="h-2.5 w-16 bg-theme-bg rounded"></div>
               </div>
             </div>
           </div>
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-4 gap-2 border-t border-slate-100 pt-3 dark:border-zinc-800">
+        <div className="grid grid-cols-4 gap-2 border-t border-theme-border pt-3">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="text-center space-y-2">
-              <div className="h-2 w-10 bg-slate-200 dark:bg-zinc-800 rounded mx-auto"></div>
-              <div className="h-3 w-8 bg-slate-200 dark:bg-zinc-800 rounded mx-auto"></div>
+              <div className="h-2 w-10 bg-theme-bg rounded mx-auto"></div>
+              <div className="h-3 w-8 bg-theme-bg rounded mx-auto"></div>
             </div>
           ))}
         </div>
@@ -130,17 +130,17 @@ export const CouncillorInfoCard: React.FC<CouncillorInfoCardProps> = ({
   return (
     <div
       ref={cardRef}
-      className="opacity-0 bg-white rounded-xl border border-slate-200 p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 flex-1 lg:max-w-md select-none flex flex-col gap-3.5"
+      className="opacity-0 bg-theme-card rounded-xl border border-theme-border p-4 shadow-sm flex-1 lg:max-w-md select-none flex flex-col gap-3.5 transition-colors duration-300"
     >
       <div className="flex items-center justify-between">
-        <h3 className="text-[10px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 uppercase flex items-center gap-1.5">
-          <FileText size={12} className="text-slate-400 dark:text-zinc-500" />
+        <h3 className="text-[10px] font-bold tracking-wider text-theme-muted uppercase flex items-center gap-1.5">
+          <FileText size={12} className="text-theme-muted" />
           {title}
         </h3>
         {onCall && (
           <button
             onClick={onCall}
-            className="flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 transition-colors dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400"
+            className="flex items-center gap-1 rounded-md border border-theme-border bg-theme-bg px-2 py-1 text-[10px] font-bold text-theme-text hover:bg-theme-bg/85 transition-colors duration-300"
           >
             <Phone size={11} /> Call
           </button>
@@ -150,29 +150,29 @@ export const CouncillorInfoCard: React.FC<CouncillorInfoCardProps> = ({
       {/* Header Profile Area */}
       <div className="flex items-start gap-4">
         {/* Left Side Portrait Container */}
-        <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-lg bg-slate-50 dark:bg-zinc-800/40 flex items-center justify-center border border-slate-200 dark:border-zinc-800">
-          <User size={48} className="text-slate-300 dark:text-zinc-600" />
-          <div className="absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-slate-500 border border-white dark:border-zinc-950 text-[8px] text-white font-black">
+        <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-lg bg-theme-bg flex items-center justify-center border border-theme-border">
+          <User size={48} className="text-theme-muted" />
+          <div className="absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-theme-accent border border-theme-card text-[8px] text-white font-black">
             {cleanName.charAt(0)}
           </div>
         </div>
 
         {/* Right Side Info */}
         <div className="flex-1 min-w-0">
-          <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block leading-none">
+          <span className="text-[9px] font-bold text-theme-muted uppercase tracking-wider block leading-none">
             Councillor
           </span>
-          <h4 className="text-lg font-black text-slate-800 dark:text-white mt-1 leading-tight truncate">
+          <h4 className="text-lg font-black text-theme-text mt-1 leading-tight truncate">
             {cleanName}
           </h4>
-          <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-2 leading-tight font-semibold">
+          <p className="text-[10px] text-theme-muted mt-2 leading-tight font-semibold">
             {councillor.role === "Ward Councillor"
               ? `Ward ${councillor.voterCard.split("-")[0]} - ${cleanWardName}`
               : councillor.body}
           </p>
           {showParty && (
             <div className="flex items-center gap-1.5 mt-3">
-              <span className="text-[9px] font-bold text-slate-400 uppercase">Party:</span>
+              <span className="text-[9px] font-bold text-theme-muted uppercase">Party:</span>
               <span className={`px-2 py-0.5 text-[8px] font-black rounded leading-none ${councillor.partyColor}`}>
                 {councillor.party}
               </span>
@@ -183,67 +183,67 @@ export const CouncillorInfoCard: React.FC<CouncillorInfoCardProps> = ({
 
       {/* Detailed About Section */}
       {showAbout && (
-        <div className="p-3 bg-slate-50 rounded-lg dark:bg-zinc-800/20 border border-slate-100 dark:border-zinc-800/60">
-          <h5 className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 mb-2 uppercase tracking-wider">
+        <div className="p-3 bg-theme-bg/30 rounded-lg border border-theme-border/50">
+          <h5 className="text-[10px] font-bold text-theme-muted mb-2 uppercase tracking-wider">
             About Councillor
           </h5>
-          <div className="space-y-2 text-[10px] text-slate-600 dark:text-zinc-300 font-semibold">
+          <div className="space-y-2 text-[10px] text-theme-text font-semibold">
             {councillor.age ? (
               <div>
-                <p className="text-slate-400 dark:text-zinc-500 text-[8px] uppercase leading-none mb-0.5">
+                <p className="text-theme-muted text-[8px] uppercase leading-none mb-0.5">
                   Age:
                 </p>
-                <p className="text-slate-800 dark:text-white leading-tight">{councillor.age}</p>
+                <p className="text-theme-text leading-tight">{councillor.age}</p>
               </div>
             ) : null}
             {councillor.voterCard && (
               <div>
-                <p className="text-slate-400 dark:text-zinc-500 text-[8px] uppercase leading-none mb-0.5">
+                <p className="text-theme-muted text-[8px] uppercase leading-none mb-0.5">
                   Name Enrolled as Voter in:
                 </p>
-                <p className="text-slate-800 dark:text-white leading-tight">
+                <p className="text-theme-text leading-tight">
                   {cleanWardName} constituency, at Serial no {councillor.voterSerial ?? 0} in Part no {councillor.voterPart ?? 0}
                 </p>
               </div>
             )}
             {councillor.education && (
               <div>
-                <p className="text-slate-400 dark:text-zinc-500 text-[8px] uppercase leading-none mb-0.5">
+                <p className="text-theme-muted text-[8px] uppercase leading-none mb-0.5">
                   Education:
                 </p>
-                <p className="text-slate-800 dark:text-white leading-tight">{councillor.education}</p>
+                <p className="text-theme-text leading-tight">{councillor.education}</p>
               </div>
             )}
             {councillor.criminalCases !== undefined && (
               <div>
-                <p className="text-slate-400 dark:text-zinc-500 text-[8px] uppercase leading-none mb-0.5">
+                <p className="text-theme-muted text-[8px] uppercase leading-none mb-0.5">
                   Criminal Cases:
                 </p>
-                <p className="text-slate-800 dark:text-white leading-tight">{councillor.criminalCases}</p>
+                <p className="text-theme-text leading-tight">{councillor.criminalCases}</p>
               </div>
             )}
             {councillor.assets && (
               <div>
-                <p className="text-slate-400 dark:text-zinc-500 text-[8px] uppercase leading-none mb-0.5">
+                <p className="text-theme-muted text-[8px] uppercase leading-none mb-0.5">
                   Assets:
                 </p>
-                <p className="text-slate-800 dark:text-white leading-tight">{councillor.assets}</p>
+                <p className="text-theme-text leading-tight">{councillor.assets}</p>
               </div>
             )}
             {councillor.liabilities && (
               <div>
-                <p className="text-slate-400 dark:text-zinc-500 text-[8px] uppercase leading-none mb-0.5">
+                <p className="text-theme-muted text-[8px] uppercase leading-none mb-0.5">
                   Liabilities:
                 </p>
-                <p className="text-slate-800 dark:text-white leading-tight">{councillor.liabilities}</p>
+                <p className="text-theme-text leading-tight">{councillor.liabilities}</p>
               </div>
             )}
             {councillor.phone && (
               <div>
-                <p className="text-slate-400 dark:text-zinc-500 text-[8px] uppercase leading-none mb-0.5">
+                <p className="text-theme-muted text-[8px] uppercase leading-none mb-0.5">
                   Mobile:
                 </p>
-                <p className="text-slate-800 dark:text-white leading-tight">{councillor.phone}</p>
+                <p className="text-theme-text leading-tight">{councillor.phone}</p>
               </div>
             )}
           </div>
@@ -251,7 +251,7 @@ export const CouncillorInfoCard: React.FC<CouncillorInfoCardProps> = ({
       )}
 
       {/* Grid of Main Stats */}
-      <div className="grid grid-cols-4 gap-2 border-t border-slate-100 pt-3 dark:border-zinc-800">
+      <div className="grid grid-cols-4 gap-2 border-t border-theme-border pt-3">
         {(metrics ?? [
           { label: "Complaints", value: String(councillor.complaints) },
           { label: "Resolution", value: councillor.resolutionTime },
@@ -260,16 +260,16 @@ export const CouncillorInfoCard: React.FC<CouncillorInfoCardProps> = ({
         ]).map((metric, idx) => (
           <div
             key={metric.label}
-            className={`text-center ${idx > 0 ? "border-l border-slate-100 dark:border-zinc-800 pl-1" : ""}`}
+            className={`text-center ${idx > 0 ? "border-l border-theme-border pl-1" : ""}`}
           >
-            <p className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 leading-tight">{metric.label}</p>
+            <p className="text-[9px] font-bold text-theme-muted leading-tight">{metric.label}</p>
             <p
               className={`font-black text-sm mt-0.5 flex items-center justify-center gap-0.5 ${
-                metric.highlight ? "text-emerald-600 dark:text-emerald-400" : "text-slate-800 dark:text-white"
+                metric.highlight ? "text-theme-success" : "text-theme-text"
               }`}
             >
               {metric.value}
-              {metric.suffix && <span className="text-[9px] font-medium text-slate-400">{metric.suffix}</span>}
+              {metric.suffix && <span className="text-[9px] font-medium text-theme-muted">{metric.suffix}</span>}
             </p>
           </div>
         ))}
