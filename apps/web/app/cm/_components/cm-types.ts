@@ -141,4 +141,5 @@ export interface CouncillorData {
   resolutionTime: string;
   satisfactionRate: string;
   wardHealth: number;
+  mobile?: string;
 }

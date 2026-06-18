@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { X, Phone } from "lucide-react";
+import { supabase } from "@/src/lib/supabase";
 
 import { KPIStatsRow } from "../KPIStatsRow";
 import { MapSection } from "../MapSection";
@@ -71,13 +72,53 @@ export const WardView: React.FC<WardViewProps> = ({
 
   const { kpis, interventions, departments } = useLiveDashboardData(points);
 
-  const liveWardCouncillor = useMemo(() => {
-    if (liveWardHealthScore === undefined) return wardCouncillor;
-    return {
-      ...wardCouncillor,
-      wardHealth: liveWardHealthScore,
-    };
-  }, [liveWardHealthScore]);
+  const [liveWardCouncillor, setLiveWardCouncillor] = useState<any>({
+    ...wardCouncillor,
+    wardHealth: liveWardHealthScore ?? 72
+  });
+
+  useEffect(() => {
+    const wardNo = wardRegion?.properties.ward_no;
+    if (wardNo) {
+      const fetchCouncillor = async () => {
+        const { data, error } = await (supabase as any)
+          .from("ward_councillors")
+          .select("*")
+          .eq("ward_no", wardNo)
+          .maybeSingle();
+
+        if (!error && data) {
+          const partyColor = data.party?.toUpperCase() === "AAP"
+            ? "bg-blue-100 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400"
+            : data.party?.toUpperCase() === "BJP"
+            ? "bg-orange-100 text-orange-700 dark:bg-orange-950/20 dark:text-orange-400"
+            : "bg-slate-100 text-slate-700 dark:bg-slate-950/20 dark:text-slate-400";
+
+          // Calculate dynamic complaints count from the points array
+          const activeComplaints = points.filter(p => !["resolved", "rejected", "spam", "pending_closure"].includes(p.status)).length;
+
+          setLiveWardCouncillor({
+            name: data.councillor_name,
+            role: "Ward Councillor",
+            body: "Delhi Municipal Corporation",
+            electionYear: "Election 2022",
+            party: data.party || "IND",
+            partyColor,
+            spouseName: "Om Prakash Yadav",
+            profession: "Social Worker",
+            age: 31,
+            voterCard: `${data.ward_no}-${data.ward_name}`,
+            complaints: activeComplaints || 142,
+            resolutionTime: "3h 45m",
+            satisfactionRate: "76%",
+            wardHealth: liveWardHealthScore ?? 72,
+            mobile: data.mobile || "",
+          });
+        }
+      };
+      fetchCouncillor();
+    }
+  }, [wardRegion?.properties.ward_no, liveWardHealthScore, points]);
 
   const escalationTabs = useMemo(() => [
     { id: "all", label: "All" },
@@ -233,18 +274,18 @@ export const WardView: React.FC<WardViewProps> = ({
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
             <div className="flex items-start justify-between border-b border-slate-100 pb-3 dark:border-zinc-800">
-              <h3 className="text-base font-bold text-slate-800 dark:text-white">Call Councillor Shashi Yadav</h3>
+              <h3 className="text-base font-bold text-slate-800 dark:text-white">Call Councillor {liveWardCouncillor.name}</h3>
               <button onClick={() => setActiveActionModal(null)} className="text-slate-400 hover:bg-slate-50 dark:hover:bg-zinc-800 p-1 rounded-lg">
                 <X size={18} />
               </button>
             </div>
             <div className="py-4 space-y-3">
               <p className="text-xs text-slate-500 leading-relaxed">
-                Connect directly to Ward 11 councillor Shashi Yadav for urgent ground support.
+                Connect directly to {wardTitle} councillor {liveWardCouncillor.name} for urgent ground support.
               </p>
               <div className="p-3 bg-slate-50 rounded-lg dark:bg-zinc-800/40 text-xs font-bold space-y-1">
                 <p className="text-slate-400 text-[9px] uppercase leading-none">Office Phone:</p>
-                <p className="text-slate-800 dark:text-white text-sm">+91 9810X XXXXX</p>
+                <p className="text-slate-800 dark:text-white text-sm">{liveWardCouncillor.mobile || "+91 9810X XXXXX"}</p>
               </div>
             </div>
             <div className="flex gap-3 pt-1">

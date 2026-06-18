@@ -577,6 +577,7 @@ def reverse_geocode_from_coordinates(latitude: float, longitude: float) -> Dict[
         "ward_no": "",
         "councillor_name": "",
         "councillor_party": "",
+        "councillor_mobile": "",
         "mla_name": "",
         "mla_party": "",
         "mla_phone_number_1": "",
@@ -680,6 +681,7 @@ def reverse_geocode_from_coordinates(latitude: float, longitude: float) -> Dict[
             # Map representative info
             location["councillor_name"] = first_row.get("councillor_name") or ""
             location["councillor_party"] = first_row.get("councillor_party") or ""
+            location["councillor_mobile"] = first_row.get("councillor_mobile") or ""
             location["mla_name"] = first_row.get("mla_name") or ""
             location["mla_party"] = first_row.get("mla_party") or ""
             location["mla_phone_number_1"] = first_row.get("mla_phone_number_1") or ""
