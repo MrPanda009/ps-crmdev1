@@ -199,6 +199,10 @@ class TicketPreview(BaseModel):
     decision: str = "valid_issue"  # valid_issue | explicit_blocked | non_civic_rejected | low_confidence
     decision_reason: Optional[str] = None
     reason_code: Optional[str] = "VALID_ISSUE"
+    councillor_name: Optional[str] = None
+    councillor_party: Optional[str] = None
+    mla_name: Optional[str] = None
+    mla_party: Optional[str] = None
 
 
 class TicketCreated(BaseModel):
@@ -220,6 +224,7 @@ class TicketCreated(BaseModel):
     accuracy: float
     timestamp: str
     image_metadata: Optional[Dict[str, str]] = None
+    ward_no: Optional[int] = None
 
 
 class ReviewSubmission(BaseModel):
@@ -1017,6 +1022,10 @@ async def analyze(
             confirm_prompt="⚠️ We're not confident enough about this classification. Please take a clearer photo or describe the issue in more detail.",
             decision=DECISION_LOW_CONFIDENCE,
             decision_reason=f"Confidence {confidence:.2f} is below threshold {CONFIDENCE_THRESHOLD}.",
+            councillor_name=location.get("councillor_name"),
+            councillor_party=location.get("councillor_party"),
+            mla_name=location.get("mla_name"),
+            mla_party=location.get("mla_party"),
         )
 
     return TicketPreview(
@@ -1046,6 +1055,10 @@ async def analyze(
         confirm_prompt="✅ Ticket preview ready. Type \"confirm\" or \"submit\" to raise this ticket, or describe the issue differently to re-analyse.",
         decision=DECISION_VALID,
         reason_code="VALID_ISSUE",
+        councillor_name=location.get("councillor_name"),
+        councillor_party=location.get("councillor_party"),
+        mla_name=location.get("mla_name"),
+        mla_party=location.get("mla_party"),
     )
 
 
@@ -1236,6 +1249,7 @@ async def confirm(
         accuracy=accuracy,
         timestamp=timestamp,
         image_metadata=img_metadata,
+        ward_no=int(location["ward_no"]) if location.get("ward_no") else None,
     )
 
     # --- Background Email Notification ---
