@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 import { KPIStatsRow } from "../KPIStatsRow";
 import { MapSection } from "../MapSection";
@@ -70,13 +70,82 @@ export const ZoneView: React.FC<ZoneViewProps> = ({
   zoneHealthScore,
   points,
 }) => {
+  const zoneId = wardRegions[0]?.properties.zoneId || "central";
+  const [insights, setInsights] = useState(zoneInsights);
+  const [predictionData, setPredictionData] = useState(zonePredictionData);
+  const [expectedGrowth, setExpectedGrowth] = useState("+14%");
+  const [estimatedSlaMisses, setEstimatedSlaMisses] = useState(11);
+  const [highRiskHotspots, setHighRiskHotspots] = useState(["Connaught Place", "Karol Bagh", "Paharganj"]);
+  const [commissioner, setCommissioner] = useState(zoneCommissioner);
+
+  const { kpis, interventions, departments } = useLiveDashboardData(points);
+
+  useEffect(() => {
+    let active = true;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    
+    // Fetch Insights
+    fetch(`${apiUrl}/api/cm/insights?scope=zone&scope_id=${zoneId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (active && data.insights) setInsights(data.insights);
+      })
+      .catch(err => console.error("Error fetching zone insights:", err));
+
+    // Fetch Outlook
+    fetch(`${apiUrl}/api/cm/predictive-outlook?scope=zone&scope_id=${zoneId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (active && data.data) {
+          setPredictionData(data.data);
+          setExpectedGrowth(data.expectedGrowth);
+          setEstimatedSlaMisses(data.estimatedSlaMisses);
+          setHighRiskHotspots(data.highRiskHotspots);
+        }
+      })
+      .catch(err => console.error("Error fetching zone outlook:", err));
+
+    // Fetch Commissioner Card
+    fetch(`${apiUrl}/api/cm/additional-commissioners`)
+      .then(res => res.json())
+      .then(data => {
+        if (active && data.data) {
+          const targetZone = zoneName.replace(" Zone", "").trim().toLowerCase();
+          const ac = data.data.find((c: any) => 
+            c.assigned_zones.some((z: string) => z.toLowerCase().includes(targetZone))
+          );
+          if (ac) {
+            setCommissioner({
+              name: ac.name,
+              role: ac.designation || "Zone Commissioner",
+              body: `MCD — ${zoneName}`,
+              electionYear: "Since 2021",
+              party: "",
+              partyColor: "",
+              spouseName: "",
+              profession: "",
+              age: 0,
+              voterCard: "",
+              complaints: kpis.find(k => k.id === "active")?.value || 312,
+              resolutionTime: "4h 20m",
+              satisfactionRate: "72%",
+              wardHealth: zoneHealthScore ?? 76,
+            });
+          }
+        }
+      })
+      .catch(err => console.error("Error fetching zone commissioner:", err));
+
+    return () => {
+      active = false;
+    };
+  }, [zoneId, zoneName, kpis, zoneHealthScore]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<keyof DepartmentPerf>("open");
   const [sortAsc, setSortAsc] = useState(false);
   const [interventionFilter, setInterventionFilter] = useState("all");
   const [selectedIntervention, setSelectedIntervention] = useState<Intervention | null>(null);
-
-  const { kpis, interventions, departments } = useLiveDashboardData(points);
 
   const liveWardHealthRows = useMemo(() => {
     return wardRegions.map((w) => {
@@ -173,7 +242,7 @@ export const ZoneView: React.FC<ZoneViewProps> = ({
                 onToggleSeverity={onToggleSeverity}
               />
               <div className="w-full xl:w-80 shrink-0 flex flex-col gap-3 xl:h-full">
-                <AIInsightsPanel insights={zoneInsights} />
+                <AIInsightsPanel insights={insights} />
                 <DepartmentPerformanceTable
                   departments={sortedDepartments}
                   sortField={sortField}
@@ -194,10 +263,10 @@ export const ZoneView: React.FC<ZoneViewProps> = ({
                 className="xl:h-[320px]"
               />
               <PredictiveOutlookCard
-                data={zonePredictionData}
-                expectedGrowth="+14%"
-                estimatedSlaMisses={11}
-                highRiskHotspots={["Connaught Place", "Karol Bagh", "Paharganj"]}
+                data={predictionData}
+                expectedGrowth={expectedGrowth}
+                estimatedSlaMisses={estimatedSlaMisses}
+                highRiskHotspots={highRiskHotspots}
                 isDark={isDark}
                 className="xl:h-[320px]"
               />
@@ -206,7 +275,7 @@ export const ZoneView: React.FC<ZoneViewProps> = ({
 
           <div className="w-full xl:w-[380px] shrink-0 flex flex-col gap-3 xl:h-[960px]">
             <CouncillorInfoCard
-              councillor={zoneCommissioner}
+              councillor={commissioner}
               title={`${zoneName.toUpperCase()} ZONE COMMAND CENTER`}
               showAbout={false}
               showParty={false}

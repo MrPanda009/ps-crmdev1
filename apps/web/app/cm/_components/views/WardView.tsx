@@ -74,6 +74,112 @@ export const WardView: React.FC<WardViewProps> = ({
 
   const { kpis, interventions, departments } = useLiveDashboardData(points);
 
+  const [localities, setLocalities] = useState(wardLocalities);
+  const [predictionData, setPredictionData] = useState(wardPredictionData);
+  const [expectedGrowth, setExpectedGrowth] = useState("+12%");
+  const [estimatedSlaMisses, setEstimatedSlaMisses] = useState(6);
+  const [highRiskHotspots, setHighRiskHotspots] = useState(["Roshampura", "Najafgarh Rd", "Jharoda Kalan"]);
+  const [insights, setInsights] = useState(wardInsights);
+  const [performanceMetrics, setPerformanceMetrics] = useState<any>(undefined);
+
+  const [workforceTeams, setWorkforceTeams] = useState<any>(undefined);
+  const [workforceChartData, setWorkforceChartData] = useState<any>(undefined);
+  const [workforceActivePct, setWorkforceActivePct] = useState("71%");
+
+  const liveCategories = useMemo(() => {
+    let garbage = 0, water = 0, roads = 0, streetlights = 0, sewage = 0, others = 0;
+    points.forEach(p => {
+      const title = p.title.toLowerCase();
+      const desc = p.description.toLowerCase();
+      const dept = (p.assigned_department ?? "").toLowerCase();
+
+      if (title.includes("garbage") || title.includes("dump") || desc.includes("garbage") || desc.includes("dump") || dept === "mcd") {
+        garbage++;
+      } else if (title.includes("water") || title.includes("leak") || desc.includes("water") || desc.includes("leak") || dept === "djb") {
+        water++;
+      } else if (title.includes("road") || title.includes("pothole") || desc.includes("road") || desc.includes("pothole") || dept === "pwd") {
+        roads++;
+      } else if (title.includes("light") || title.includes("electricity") || desc.includes("light") || desc.includes("electricity")) {
+        streetlights++;
+      } else if (title.includes("sewage") || title.includes("drain") || desc.includes("sewage") || desc.includes("drain")) {
+        sewage++;
+      } else {
+        others++;
+      }
+    });
+
+    return [
+      { name: "Garbage", count: garbage, iconName: "garbage" as const, colorClass: "text-emerald-700 bg-emerald-50/70 dark:bg-emerald-950/15 dark:text-emerald-300" },
+      { name: "Water", count: water, iconName: "water" as const, colorClass: "text-blue-700 bg-blue-50/70 dark:bg-blue-950/15 dark:text-blue-300" },
+      { name: "Roads", count: roads, iconName: "roads" as const, colorClass: "text-indigo-700 bg-indigo-50/70 dark:bg-indigo-950/15 dark:text-indigo-300" },
+      { name: "Streetlights", count: streetlights, iconName: "streetlights" as const, colorClass: "text-amber-700 bg-amber-50/70 dark:bg-amber-950/15 dark:text-amber-300" },
+      { name: "Sewage", count: sewage, iconName: "sewage" as const, colorClass: "text-orange-700 bg-orange-50/70 dark:bg-orange-950/15 dark:text-orange-300" },
+      { name: "Others", count: others, iconName: "others" as const, colorClass: "text-theme-muted bg-theme-bg/40" },
+    ];
+  }, [points]);
+
+  useEffect(() => {
+    if (wardNo === null) return;
+    let active = true;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    
+    // Fetch Localities
+    fetch(`${apiUrl}/api/cm/localities?ward_no=${wardNo}`)
+      .then(res => res.json())
+      .then(data => {
+        if (active && data.localities && data.localities.length > 0) {
+          setLocalities(data.localities);
+        }
+      })
+      .catch(err => console.error("Error fetching localities:", err));
+
+    // Fetch Outlook
+    fetch(`${apiUrl}/api/cm/predictive-outlook?scope=ward&scope_id=${wardNo}`)
+      .then(res => res.json())
+      .then(data => {
+        if (active && data.data) {
+          setPredictionData(data.data);
+          setExpectedGrowth(data.expectedGrowth);
+          setEstimatedSlaMisses(data.estimatedSlaMisses);
+          setHighRiskHotspots(data.highRiskHotspots);
+        }
+      })
+      .catch(err => console.error("Error fetching outlook:", err));
+
+    // Fetch Insights
+    fetch(`${apiUrl}/api/cm/insights?scope=ward&scope_id=${wardNo}`)
+      .then(res => res.json())
+      .then(data => {
+        if (active && data.insights) setInsights(data.insights);
+      })
+      .catch(err => console.error("Error fetching insights:", err));
+
+    // Fetch Performance Metrics
+    fetch(`${apiUrl}/api/cm/ward-performance?ward_no=${wardNo}`)
+      .then(res => res.json())
+      .then(data => {
+        if (active && data.metrics) setPerformanceMetrics(data.metrics);
+      })
+      .catch(err => console.error("Error fetching performance metrics:", err));
+
+    // Fetch Workforce Status
+    fetch(`${apiUrl}/api/cm/workforce-status?scope=ward&scope_id=${wardNo}`)
+      .then(res => res.json())
+      .then(data => {
+        if (active && data.teams) {
+          setWorkforceTeams(data.teams);
+          setWorkforceChartData(data.chartData);
+          setWorkforceActivePct(data.activePercentage);
+        }
+      })
+      .catch(err => console.error("Error fetching workforce status:", err));
+
+    return () => {
+      active = false;
+    };
+  }, [wardNo]);
+
+
   const { councillor: dbCouncillor, loading: dbCouncillorLoading } = useLiveWardCouncillor(wardNo, points, liveWardHealthScore);
 
   const liveWardCouncillor = useMemo(() => {
@@ -166,7 +272,7 @@ export const WardView: React.FC<WardViewProps> = ({
                 onToggleSeverity={onToggleSeverity}
               />
               <div className="w-full xl:w-80 shrink-0 flex flex-col gap-3 xl:h-full">
-                <AIInsightsPanel insights={wardInsights} />
+                <AIInsightsPanel insights={insights} />
                 <DepartmentPerformanceTable
                   departments={sortedDepartments}
                   sortField={sortField}
@@ -179,23 +285,23 @@ export const WardView: React.FC<WardViewProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 shrink-0">
               <LocalityHealthTable
-                localities={wardLocalities}
+                localities={localities}
                 onViewAnalyticsClick={() => triggerToast("Redirecting to detailed location breakdown...")}
                 className="xl:h-full"
               />
               <div className="flex flex-col gap-3">
-                <ComplaintBreakdownGrid />
-                <WorkforceStatusCard activePercentage="71%" />
+                <ComplaintBreakdownGrid categories={liveCategories} />
+                <WorkforceStatusCard teams={workforceTeams} chartData={workforceChartData} activePercentage={workforceActivePct} />
               </div>
               <div className="flex flex-col gap-3">
                 <PredictiveOutlookCard
-                  data={wardPredictionData}
-                  expectedGrowth="+12%"
-                  estimatedSlaMisses={6}
-                  highRiskHotspots={["Roshampura", "Najafgarh Rd", "Jharoda Kalan"]}
+                  data={predictionData}
+                  expectedGrowth={expectedGrowth}
+                  estimatedSlaMisses={estimatedSlaMisses}
+                  highRiskHotspots={highRiskHotspots}
                   isDark={isDark}
                 />
-                <WardPerformanceGrid />
+                <WardPerformanceGrid metrics={performanceMetrics} />
               </div>
             </div>
           </div>
