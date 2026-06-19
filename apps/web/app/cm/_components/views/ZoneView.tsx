@@ -150,7 +150,7 @@ export const ZoneView: React.FC<ZoneViewProps> = ({
 
         <div className="flex flex-col xl:flex-row gap-3">
           <div className="flex-1 flex flex-col gap-3">
-            <div className="flex flex-col xl:flex-row gap-3 xl:h-[450px] shrink-0">
+            <div className="flex flex-col xl:flex-row gap-3 xl:h-[650px] shrink-0">
               <MapSection
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
@@ -191,7 +191,7 @@ export const ZoneView: React.FC<ZoneViewProps> = ({
                 rowLabel="Ward"
                 actionLabel="View Ward Analytics"
                 onViewAnalyticsClick={() => triggerToast("Opening ward analytics breakdown...")}
-                className="xl:h-full"
+                className="xl:h-[320px]"
               />
               <PredictiveOutlookCard
                 data={zonePredictionData}
@@ -199,11 +199,12 @@ export const ZoneView: React.FC<ZoneViewProps> = ({
                 estimatedSlaMisses={11}
                 highRiskHotspots={["Connaught Place", "Karol Bagh", "Paharganj"]}
                 isDark={isDark}
+                className="xl:h-[320px]"
               />
             </div>
           </div>
 
-          <div className="w-full xl:w-[380px] shrink-0 flex flex-col gap-3 xl:h-[760px]">
+          <div className="w-full xl:w-[380px] shrink-0 flex flex-col gap-3 xl:h-[960px]">
             <CouncillorInfoCard
               councillor={zoneCommissioner}
               title={`${zoneName.toUpperCase()} ZONE COMMAND CENTER`}

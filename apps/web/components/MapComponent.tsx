@@ -258,7 +258,7 @@ export default function MapComponent({
     const bounds = getBBoxForFeatures(features);
     if (bounds) {
       const timer = setTimeout(() => {
-        mapRef.current?.fitBounds(bounds, { padding: 20, duration: 1500 });
+        mapRef.current?.fitBounds(bounds, { padding: { top: 20, bottom: 20, left: 320, right: 20 }, duration: 1500 });
       }, 100);
       return () => clearTimeout(timer);
     }
@@ -272,7 +272,7 @@ export default function MapComponent({
       const features = target ? [target] : regions;
       const bounds = getBBoxForFeatures(features);
       if (bounds) {
-        mapRef.current?.fitBounds(bounds, { padding: 20, duration: 1500 });
+        mapRef.current?.fitBounds(bounds, { padding: { top: 20, bottom: 20, left: 320, right: 20 }, duration: 1500 });
         return;
       }
     }
